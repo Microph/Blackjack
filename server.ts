@@ -12,6 +12,11 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws: WebSocket) => {
+    ws.isAlive = true;
+
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
 
     //connection is up, let's add a simple simple event
     ws.on('message', (message: string) => {
@@ -24,6 +29,16 @@ wss.on('connection', (ws: WebSocket) => {
     //send immediatly a feedback to the incoming connection    
     ws.send('Hi there, I am a WebSocket server');
 });
+
+setInterval(() => {
+    wss.clients.forEach((ws: WebSocket) => {
+        
+        if (!ws.isAlive) return ws.terminate();
+        
+        ws.isAlive = false;
+        ws.ping();
+    });
+}, 10000);
 
 //start our server
 server.listen(process.env.PORT || 8080, () => {
