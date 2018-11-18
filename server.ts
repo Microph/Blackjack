@@ -1,16 +1,18 @@
 import * as express from 'express';
 import * as http from 'http';
 import * as net from 'net';
+import * as redis from 'redis';
 
 import * as WebSocket from 'ws';
 
 const app = express();
-
-//initialize a simple http server
 const server = http.createServer(app);
-
-//initialize the WebSocket server instance
 const wss = new WebSocket.Server({ server });
+const redisClient = redis.createClient(6379, "127.0.0.1");
+
+redisClient.on('connect', function() {
+    console.log('Redis client connected');
+});
 
 wss.on('connection', (ws: WebSocket) => {
     ws.isAlive = true;
@@ -35,12 +37,16 @@ wss.on('connection', (ws: WebSocket) => {
 setInterval(() => {
     wss.clients.forEach((ws: WebSocket) => {
         
-        if (!ws.isAlive) return ws.terminate();
+        if (!ws.isAlive)
+        {
+            //TODO: if the client is playing game -> immediately lose
+            return ws.terminate();
+        } 
         
         ws.isAlive = false;
         ws.ping();
     });
-}, 10000);
+}, 1000);
 
 //start our server
 server.listen(process.env.PORT || 8080, () => {

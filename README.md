@@ -1,4 +1,4 @@
 # Blackjack
 
 - tsc
-- node ./dist/server/server.js
+- npm start
