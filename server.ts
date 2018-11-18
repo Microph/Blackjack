@@ -46,7 +46,7 @@ setInterval(() => {
         ws.isAlive = false;
         ws.ping();
     });
-}, 1000);
+}, 10000);
 
 //start our server
 server.listen(process.env.PORT || 8080, () => {
