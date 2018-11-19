@@ -18,7 +18,11 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const redisClient = redis.createClient(6379, "127.0.0.1");
+const setAsync = util_2.promisify(redisClient.set).bind(redisClient);
+const hsetAsync = util_2.promisify(redisClient.hset).bind(redisClient);
+const hmsetAsync = util_2.promisify(redisClient.hmset).bind(redisClient);
 const getAsync = util_2.promisify(redisClient.get).bind(redisClient);
+const hgetAsync = util_2.promisify(redisClient.hget).bind(redisClient);
 const callbacks = {};
 redisClient.on('connect', function () {
     console.log('Redis client connected');
@@ -57,9 +61,53 @@ const startGame = function (ws, data) {
         if (!isAcceptableUserName(data.username))
             return;
         console.log('start game! ' + data.username);
-        redisClient.set("testkey", "haha", redis.print);
-        const result = yield getAsync('testkey');
-        console.log('async get key:' + result);
+        let result = {};
+        try {
+            result = yield hgetAsync('username:' + data.username, 'isPlaying');
+        }
+        catch (err) {
+            console.log(err);
+        }
+        console.log('isPlaying: ' + result);
+        if (result === 'true') {
+            console.log('already playing!');
+            return;
+        }
+        if (result === null) {
+            console.log('new player start');
+            let setResult = {};
+            try {
+                setResult = yield redisClient.hmset('username:' + data.username, 'isPlaying', 'true', 'wins', 0, 'loses', 0, 'draws', 0);
+            }
+            catch (err) {
+                console.log(err);
+            }
+            console.log('set result: ' + setResult);
+        }
+        else if (result === 'false') {
+            console.log('already have account! start playing');
+            let setResult = {};
+            try {
+                setResult = yield redisClient.hset('username:' + data.username, 'isPlaying', 'true');
+            }
+            catch (err) {
+                console.log(err);
+            }
+            console.log('set result: ' + setResult);
+        }
+        else {
+            console.log('unwanted database result');
+            return;
+        }
+        //Start game session
+        const output = {
+            "event": "startGame",
+            "data": {
+                "dealer-hand": ["2D"],
+                "player-hand": ["10H", "2C"]
+            }
+        };
+        ws.send(JSON.stringify(output));
     });
 };
 const hit = function (ws, data) {
@@ -94,7 +142,6 @@ setInterval(() => {
         ws.ping();
     });
 }, 10000);
-//start our server
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address();
     console.log('Server started on port ' + port);

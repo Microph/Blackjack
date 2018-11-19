@@ -5,13 +5,17 @@ import * as redis from 'redis';
 
 import * as WebSocket from 'ws';
 import { isNullOrUndefined } from 'util';
-import {promisify} from 'util';
+import { promisify } from 'util';
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const redisClient = redis.createClient(6379, "127.0.0.1");
+const setAsync = promisify(redisClient.set).bind(redisClient);
+const hsetAsync = promisify(redisClient.hset).bind(redisClient);
+const hmsetAsync = promisify(redisClient.hmset).bind(redisClient);
 const getAsync = promisify(redisClient.get).bind(redisClient);
+const hgetAsync = promisify(redisClient.hget).bind(redisClient);
 const callbacks: {[key: string]: Array<Function>} = {};
 
 redisClient.on('connect', function() {
@@ -63,9 +67,55 @@ const startGame = async function(ws: WebSocket, data: JSON){
         return;
 
     console.log('start game! ' + data.username);
-    redisClient.set("testkey", "haha", redis.print);
-    const result = await getAsync('testkey');
-    console.log('async get key: ' + result);
+    let result = {};
+    try{
+        result = await hgetAsync('username:' + data.username, 'isPlaying');
+    }
+    catch(err){
+        console.log(err);
+    }
+    console.log('isPlaying: ' + result);
+    if(result === 'true'){
+        console.log('already playing!');
+        return;
+    }
+
+    if(result === null){
+        console.log('new player start');
+        let setResult = {};
+        try{
+            setResult = await redisClient.hmset('username:' + data.username, 'isPlaying', 'true', 'wins', 0, 'loses', 0, 'draws', 0);
+        }
+        catch(err){
+            console.log(err);
+        }
+        console.log('set result: ' + setResult);
+    }
+    else if(result === 'false'){
+        console.log('already have account! start playing');
+        let setResult = {};
+        try{
+            setResult = await redisClient.hset('username:' + data.username, 'isPlaying', 'true');
+        }
+        catch(err){
+            console.log(err);
+        }
+        console.log('set result: ' + setResult);
+    }
+    else{
+        console.log('unwanted database result');
+        return;
+    }
+   
+    //Start game session
+    const output = {
+        "event" : "startGame",
+        "data" : {
+            "dealer-hand" : ["2D"],
+            "player-hand" : ["10H", "2C"]
+        }
+    };
+    ws.send(JSON.stringify(output));
 }
 
 const hit = function(ws: WebSocket, data: JSON){
@@ -110,7 +160,6 @@ setInterval(() => {
     });
 }, 10000);
 
-//start our server
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address() as net.AddressInfo;
     console.log('Server started on port ' + port);
