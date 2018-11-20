@@ -149,20 +149,22 @@ const cs_startGame = function (ws, data) {
         if (!isAcceptableUserName(data.username))
             return;
         console.log('start game! ' + data.username);
-        let isUserPlaying = {};
+        let redisResponses = [];
         try {
-            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
+            redisResponses = yield Promise.all([
+                redisClient.existsAsync('username:' + data.username),
+                redisClient.existsAsync('session:' + data.username)
+            ]);
         }
         catch (err) {
             console.log(err);
         }
-        console.log('isPlaying: ' + isUserPlaying);
-        if (isUserPlaying === 'true') {
+        const userHasAccount = redisResponses[0];
+        const userHasSession = redisResponses[1];
+        console.log('Has account?: ' + userHasAccount);
+        console.log('Has session?: ' + userHasSession);
+        if (userHasSession === 1) {
             console.log('already playing!');
-            return;
-        }
-        if (isUserPlaying !== null && isUserPlaying !== 'false') {
-            console.log('database error');
             return;
         }
         //Start game session
@@ -192,11 +194,11 @@ const cs_startGame = function (ws, data) {
         }
         //Update player status in db
         const redisMulti = redisClient.multi();
-        if (isUserPlaying === null) {
-            console.log('new player start');
-            redisMulti.hmset('username:' + data.username, 'isPlaying', (!hasBlackjack).toString(), 'wins', win, 'loses', 0, 'draws', draw);
+        if (userHasAccount !== 1) {
+            console.log('new player start!');
+            redisMulti.hmset('username:' + data.username, 'wins', win, 'loses', 0, 'draws', draw);
         }
-        else if (isUserPlaying === 'false') {
+        else {
             console.log('already have account! start playing');
             if (hasBlackjack) {
                 if (playResult === 1) {
@@ -205,9 +207,6 @@ const cs_startGame = function (ws, data) {
                 else {
                     redisMulti.hincrby('username:' + data.username, 'draw', 1);
                 }
-            }
-            else {
-                redisMulti.hset('username:' + data.username, 'isPlaying', 'true');
             }
         }
         //Create game session (if no blackjack)
@@ -241,15 +240,15 @@ const cs_hit = function (ws, data) {
             return;
         console.log('cs_hit! ' + data.username);
         //check if playing
-        let isUserPlaying = {};
+        let userHasSession = {};
         try {
-            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
+            userHasSession = yield redisClient.existsAsync('session:' + data.username);
         }
         catch (err) {
             console.log(err);
         }
-        console.log('isPlaying: ' + isUserPlaying);
-        if (isUserPlaying !== 'true') {
+        console.log('userHasSession: ' + userHasSession);
+        if (userHasSession !== 1) {
             console.log('user is not playing!');
             return;
         }
@@ -301,7 +300,6 @@ const cs_hit = function (ws, data) {
         const playerHandValue = checkHandValue(playerHandArray);
         if (playerHandValue > 21) {
             const redisMulti = redisClient.multi();
-            redisMulti.hset('username:' + data.username, 'isPlaying', 'false');
             redisMulti.hincrby('username:' + data.username, 'loses', 1);
             redisMulti.del('session:' + data.username);
             try {
@@ -331,15 +329,15 @@ const cs_stand = function (ws, data) {
         if (!isAcceptableUserName(data.username))
             return;
         console.log('cs_stand! ' + data.username);
-        let isUserPlaying = {};
+        let userHasSession = {};
         try {
-            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
+            userHasSession = yield redisClient.existsAsync('session:' + data.username);
         }
         catch (err) {
             console.log(err);
         }
-        console.log('isPlaying: ' + isUserPlaying);
-        if (isUserPlaying !== 'true') {
+        console.log('userHasSession: ' + userHasSession);
+        if (userHasSession !== 1) {
             console.log('user is not playing!');
             return;
         }
@@ -366,9 +364,6 @@ const cs_stand = function (ws, data) {
         const playerHandArray = JSON.parse(playerHand);
         console.log(playerHandArray);
         //Dealer start playing
-        let win = 0;
-        let draw = 0;
-        let lose = 0;
         let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
         //Update player status in db
         const redisMulti = redisClient.multi();
@@ -381,7 +376,6 @@ const cs_stand = function (ws, data) {
         else {
             redisMulti.hincrby('username:' + data.username, 'loses', 1);
         }
-        redisMulti.hset('username:' + data.username, 'isPlaying', 'false');
         redisMulti.del('session:' + data.username);
         try {
             const execResult = yield redisMulti.execAsync();
@@ -419,13 +413,12 @@ bind('cs_leaderboard', cs_leaderboard);
 setInterval(() => {
     wss.clients.forEach((ws) => {
         if (!ws.isAlive) {
-            //TODO: if the client is playing game -> immediately lose
             return ws.terminate();
         }
         ws.isAlive = false;
         ws.ping();
     });
-}, 10000);
+}, 1000);
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address();
     console.log('Server started on port ' + port);
