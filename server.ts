@@ -2,22 +2,17 @@ import * as express from 'express';
 import * as http from 'http';
 import * as net from 'net';
 import * as redis from 'redis';
+import * as bluebird from 'bluebird';
+bluebird.promisifyAll(redis);
 
 import * as WebSocket from 'ws';
 import { isNullOrUndefined } from 'util';
-import { promisify } from 'util';
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const redisClient = redis.createClient(6379, "127.0.0.1");
-const setAsync = promisify(redisClient.set).bind(redisClient);
-const hsetAsync = promisify(redisClient.hset).bind(redisClient);
-const hmsetAsync = promisify(redisClient.hmset).bind(redisClient);
-const getAsync = promisify(redisClient.get).bind(redisClient);
-const hgetAsync = promisify(redisClient.hget).bind(redisClient);
-const hincrbyAsync = promisify(redisClient.hincrby).bind(redisClient);
 const callbacks: {[key: string]: Array<Function>} = {};
+const redisClient = redis.createClient(6379, "127.0.0.1");
 
 redisClient.on('connect', function() {
     console.log('Redis client connected');
@@ -171,7 +166,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     console.log('start game! ' + data.username);
     let isUserPlaying = {};
     try{
-        isUserPlaying = await hgetAsync('username:' + data.username, 'isPlaying');
+        isUserPlaying = await redisClient.hgetAsync('username:' + data.username, 'isPlaying');
     }
     catch(err){
         console.log(err);
@@ -215,7 +210,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     //Update player status in db
     if(isUserPlaying === null){
         console.log('new player start');
-        asyncTasks.push( hmsetAsync(
+        asyncTasks.push( redisClient.hmsetAsync(
             'username:' + data.username, 
             'isPlaying', (!hasBlackjack).toString(), 
             'wins', win, 
@@ -227,20 +222,20 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         console.log('already have account! start playing');
         if(hasBlackjack){
             if(playResult === 1){
-                asyncTasks.push( hincrbyAsync(
+                asyncTasks.push( redisClient.hincrbyAsync(
                     'username:' + data.username, 
                     'wins', 1,
                 ));
             }
             else{
-                asyncTasks.push( hincrbyAsync(
+                asyncTasks.push( redisClient.hincrbyAsync(
                     'username:' + data.username, 
                     'draw', 1,
                 ));
             }
         }
         else{
-            asyncTasks.push( hsetAsync(
+            asyncTasks.push( redisClient.hsetAsync(
                 'username:' + data.username, 
                 'isPlaying', 'true'
             ));
@@ -249,7 +244,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
 
     //Create game session (if no blackjack)
     if(!hasBlackjack){
-        asyncTasks.push( hmsetAsync(
+        asyncTasks.push( redisClient.hmsetAsync(
             'session:' + data.username, 
             'lastActionTime', Date.now(), 
             'dealer-hand', JSON.stringify(cardForDealer), 
@@ -283,7 +278,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     //check if playing
     let isUserPlaying = {};
     try{
-        isUserPlaying = await hgetAsync('username:' + data.username, 'isPlaying');
+        isUserPlaying = await redisClient.hgetAsync('username:' + data.username, 'isPlaying');
     }
     catch(err){
         console.log(err);
@@ -295,12 +290,15 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         return;
     }
 
+    try{ await redisClient.watchAsync('session:' + data.username); }
+    catch(err){ console.log(err); }
+
     //get current hand
     let cardsDataFromSession: Array<string> = [];
     try{
         cardsDataFromSession = await Promise.all([
-            hgetAsync('session:' + data.username, 'dealer-hand'),
-            hgetAsync('session:' + data.username, 'player-hand'),
+            redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
+            redisClient.hgetAsync('session:' + data.username, 'player-hand'),
         ]); 
     }
     catch(err){
@@ -318,17 +316,37 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         deckSet.delete(card);
     });
     playerHandArray.push(drawACard(deckSet));
-    
+
+    //Save to database
+    let result = {};
+    try{
+        result = await redisClient.multi().hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray)).execAsync();
+    }
+    catch(err){
+        console.log(err);
+    }
+
+    console.log('result' + result);
+    if(result === null){
+        console.log('Hit transaction failed');
+        return;
+    }
+
     //Check bust
     const playerHandValue = checkHandValue(playerHandArray);
     if(playerHandValue > 21){
         //TODO: implement
     }
 
-    //Save to database
-
-
     //Response
+    const sc_hit = {
+        "event" : "sc_hit",
+        "data" : {
+            "dealer-hand" : [dealer1stCard],
+            "player-hand" : playerHandArray
+        }
+    };
+    ws.send(JSON.stringify(sc_hit));
 }
 
 const cs_stand = function(ws: WebSocket, data: JSON){

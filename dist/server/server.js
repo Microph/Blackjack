@@ -11,20 +11,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express = require("express");
 const http = require("http");
 const redis = require("redis");
+const bluebird = require("bluebird");
+bluebird.promisifyAll(redis);
 const WebSocket = require("ws");
 const util_1 = require("util");
-const util_2 = require("util");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const redisClient = redis.createClient(6379, "127.0.0.1");
-const setAsync = util_2.promisify(redisClient.set).bind(redisClient);
-const hsetAsync = util_2.promisify(redisClient.hset).bind(redisClient);
-const hmsetAsync = util_2.promisify(redisClient.hmset).bind(redisClient);
-const getAsync = util_2.promisify(redisClient.get).bind(redisClient);
-const hgetAsync = util_2.promisify(redisClient.hget).bind(redisClient);
-const hincrbyAsync = util_2.promisify(redisClient.hincrby).bind(redisClient);
 const callbacks = {};
+const redisClient = redis.createClient(6379, "127.0.0.1");
 redisClient.on('connect', function () {
     console.log('Redis client connected');
 });
@@ -158,7 +153,7 @@ const cs_startGame = function (ws, data) {
         console.log('start game! ' + data.username);
         let isUserPlaying = {};
         try {
-            isUserPlaying = yield hgetAsync('username:' + data.username, 'isPlaying');
+            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
         }
         catch (err) {
             console.log(err);
@@ -197,25 +192,25 @@ const cs_startGame = function (ws, data) {
         //Update player status in db
         if (isUserPlaying === null) {
             console.log('new player start');
-            asyncTasks.push(hmsetAsync('username:' + data.username, 'isPlaying', (!hasBlackjack).toString(), 'wins', win, 'loses', 0, 'draws', draw));
+            asyncTasks.push(redisClient.hmsetAsync('username:' + data.username, 'isPlaying', (!hasBlackjack).toString(), 'wins', win, 'loses', 0, 'draws', draw));
         }
         else if (isUserPlaying === 'false') {
             console.log('already have account! start playing');
             if (hasBlackjack) {
                 if (playResult === 1) {
-                    asyncTasks.push(hincrbyAsync('username:' + data.username, 'wins', 1));
+                    asyncTasks.push(redisClient.hincrbyAsync('username:' + data.username, 'wins', 1));
                 }
                 else {
-                    asyncTasks.push(hincrbyAsync('username:' + data.username, 'draw', 1));
+                    asyncTasks.push(redisClient.hincrbyAsync('username:' + data.username, 'draw', 1));
                 }
             }
             else {
-                asyncTasks.push(hsetAsync('username:' + data.username, 'isPlaying', 'true'));
+                asyncTasks.push(redisClient.hsetAsync('username:' + data.username, 'isPlaying', 'true'));
             }
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            asyncTasks.push(hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])));
+            asyncTasks.push(redisClient.hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])));
         }
         try {
             yield Promise.all(asyncTasks);
@@ -242,7 +237,7 @@ const cs_hit = function (ws, data) {
         //check if playing
         let isUserPlaying = {};
         try {
-            isUserPlaying = yield hgetAsync('username:' + data.username, 'isPlaying');
+            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
         }
         catch (err) {
             console.log(err);
@@ -252,12 +247,18 @@ const cs_hit = function (ws, data) {
             console.log('user is not playing!');
             return;
         }
+        try {
+            yield redisClient.watchAsync('session:' + data.username);
+        }
+        catch (err) {
+            console.log(err);
+        }
         //get current hand
         let cardsDataFromSession = [];
         try {
             cardsDataFromSession = yield Promise.all([
-                hgetAsync('session:' + data.username, 'dealer-hand'),
-                hgetAsync('session:' + data.username, 'player-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'player-hand'),
             ]);
         }
         catch (err) {
@@ -274,11 +275,33 @@ const cs_hit = function (ws, data) {
             deckSet.delete(card);
         });
         playerHandArray.push(drawACard(deckSet));
-        //Response
+        //Save to database
+        let result = {};
+        try {
+            result = yield redisClient.multi().hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray)).execAsync();
+        }
+        catch (err) {
+            console.log(err);
+        }
+        console.log('result' + result);
+        if (result === null) {
+            console.log('Hit transaction failed');
+            return;
+        }
+        //Check bust
         const playerHandValue = checkHandValue(playerHandArray);
         if (playerHandValue > 21) {
-            //Bust logic
+            //TODO: implement
         }
+        //Response
+        const sc_hit = {
+            "event": "sc_hit",
+            "data": {
+                "dealer-hand": [dealer1stCard],
+                "player-hand": playerHandArray
+            }
+        };
+        ws.send(JSON.stringify(sc_hit));
     });
 };
 const cs_stand = function (ws, data) {
