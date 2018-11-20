@@ -173,6 +173,7 @@ const cs_startGame = function (ws, data) {
             return;
         }
         //Start game session
+        const asyncTasks = [];
         const deckSet = new Set(fullDeck);
         const cardForPlayer1st = drawACard(deckSet);
         const cardForPlayer2nd = drawACard(deckSet);
@@ -196,46 +197,31 @@ const cs_startGame = function (ws, data) {
         //Update player status in db
         if (isUserPlaying === null) {
             console.log('new player start');
-            let redisHSETResult = {};
-            try {
-                redisHSETResult = yield hmsetAsync('username:' + data.username, 'isPlaying', (!hasBlackjack).toString(), 'wins', win, 'loses', 0, 'draws', draw);
-            }
-            catch (err) {
-                console.log(err);
-            }
-            console.log('new player HSET result: ' + redisHSETResult);
+            asyncTasks.push(hmsetAsync('username:' + data.username, 'isPlaying', (!hasBlackjack).toString(), 'wins', win, 'loses', 0, 'draws', draw));
         }
         else if (isUserPlaying === 'false') {
             console.log('already have account! start playing');
-            let redisHSETResult = {};
-            try {
-                if (hasBlackjack) {
-                    if (playResult === 1) {
-                        redisHSETResult = yield hincrbyAsync('username:' + data.username, 'wins', 1);
-                    }
-                    else {
-                        redisHSETResult = yield hincrbyAsync('username:' + data.username, 'draw', 1);
-                    }
+            if (hasBlackjack) {
+                if (playResult === 1) {
+                    asyncTasks.push(hincrbyAsync('username:' + data.username, 'wins', 1));
                 }
                 else {
-                    redisHSETResult = yield hsetAsync('username:' + data.username, 'isPlaying', 'true');
+                    asyncTasks.push(hincrbyAsync('username:' + data.username, 'draw', 1));
                 }
             }
-            catch (err) {
-                console.log(err);
+            else {
+                asyncTasks.push(hsetAsync('username:' + data.username, 'isPlaying', 'true'));
             }
-            console.log('isPlaying HSET result: ' + redisHSETResult);
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            let redisHSETResult = {};
-            try {
-                redisHSETResult = yield hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
-            }
-            catch (err) {
-                console.log(err);
-            }
-            console.log('new session HSET result: ' + redisHSETResult);
+            asyncTasks.push(hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])));
+        }
+        try {
+            yield Promise.all(asyncTasks);
+        }
+        catch (err) {
+            console.log(err);
         }
         //Response
         const sc_startGame = {
@@ -249,9 +235,51 @@ const cs_startGame = function (ws, data) {
     });
 };
 const cs_hit = function (ws, data) {
-    if (!isAcceptableUserName(data.username))
-        return;
-    console.log('cs_hit! ' + data.username);
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!isAcceptableUserName(data.username))
+            return;
+        console.log('cs_hit! ' + data.username);
+        //check if playing
+        let isUserPlaying = {};
+        try {
+            isUserPlaying = yield hgetAsync('username:' + data.username, 'isPlaying');
+        }
+        catch (err) {
+            console.log(err);
+        }
+        console.log('isPlaying: ' + isUserPlaying);
+        if (isUserPlaying !== 'true') {
+            console.log('user is not playing!');
+            return;
+        }
+        //get current hand
+        let cardsDataFromSession = [];
+        try {
+            cardsDataFromSession = yield Promise.all([
+                hgetAsync('session:' + data.username, 'dealer-hand'),
+                hgetAsync('session:' + data.username, 'player-hand'),
+            ]);
+        }
+        catch (err) {
+            console.log(err);
+        }
+        const dealer1stCard = cardsDataFromSession[0];
+        const playerHand = cardsDataFromSession[1];
+        const playerHandArray = JSON.parse(playerHand);
+        console.log(playerHandArray);
+        //draw
+        const deckSet = new Set(fullDeck);
+        deckSet.delete(dealer1stCard);
+        playerHandArray.forEach(card => {
+            deckSet.delete(card);
+        });
+        playerHandArray.push(drawACard(deckSet));
+        //Response
+        const playerHandValue = checkHandValue(playerHandArray);
+        if (playerHandValue > 21) {
+            //Bust logic
+        }
+    });
 };
 const cs_stand = function (ws, data) {
     if (!isAcceptableUserName(data.username))
