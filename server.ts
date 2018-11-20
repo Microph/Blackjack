@@ -16,6 +16,7 @@ const hsetAsync = promisify(redisClient.hset).bind(redisClient);
 const hmsetAsync = promisify(redisClient.hmset).bind(redisClient);
 const getAsync = promisify(redisClient.get).bind(redisClient);
 const hgetAsync = promisify(redisClient.hget).bind(redisClient);
+const hincrbyAsync = promisify(redisClient.hincrby).bind(redisClient);
 const callbacks: {[key: string]: Array<Function>} = {};
 
 redisClient.on('connect', function() {
@@ -30,10 +31,7 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('message', (message: string) => {
-
         let jsonReqObj = JSON.parse(message);
-
-        //console.log(`event: ${jsonReqObj.event}\ndata:\n${JSON.stringify(jsonReqObj.data)}\n`);
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
 
@@ -62,7 +60,7 @@ const isAcceptableUserName = function(name: string) : boolean{
 }
 
 //Game data
-const cardValue = new Map<string, number>([
+const cardValue : Map<string, number> = new Map<string, number>([
     ['AS', 11], ['AH', 11], ['AD', 11], ['AC', 11],
     ['2S', 2], ['2H', 2], ['2D', 2], ['2C', 2],
     ['3S', 3], ['3H', 3], ['3D', 3], ['3C', 3],
@@ -78,7 +76,7 @@ const cardValue = new Map<string, number>([
     ['KS', 10], ['KH', 10], ['KD', 10], ['KC', 10],
 ]);
 
-const fullDeck = new Set([
+const fullDeck : Set<string> = new Set<string>([
     'AS', 'AH', 'AD', 'AC',
     '2S', '2H', '2D', '2C',
     '3S', '3H', '3D', '3C',
@@ -102,35 +100,99 @@ const drawACard = function(deckSet: Set<string>) : string{
     return drewCard;
 }
 
+const checkHandValue = function(hand: Array<string>) : number{
+    console.log('hand: ' + hand.toString());
+    let totalValue = 0;
+    let aces = 0;
+    hand.forEach(element => {
+        const mappedValue = cardValue.get(element.toString());
+        if(mappedValue == 11){
+            aces++;
+        }
+        else if(typeof mappedValue === 'number'){
+            totalValue += mappedValue;
+        }
+        else{
+            console.log('error: bad card symbol');
+        }
+    });
+    console.log('value not included aces: ' + totalValue + '\naces: ' + aces);
+
+    for(let i=0; i<aces; i++){
+        if(totalValue + 11 <= 21){
+            totalValue += 11;
+        }
+        else{
+            totalValue += 1;
+        }
+    }
+
+    return totalValue;
+}
+
+const firstHandBlackjackPlayResult = function(ws: WebSocket, username: string, cardForPlayer1st: string, cardForPlayer2nd: string, cardForDealer: string) : number{
+    //TODO: implement
+    return 0;
+}
+
 //APIs
 const cs_startGame = async function(ws: WebSocket, data: JSON){
     if(!isAcceptableUserName(data.username))
         return;
 
     console.log('start game! ' + data.username);
-    let result = {};
+    let isUserPlaying = {};
     try{
-        result = await hgetAsync('username:' + data.username, 'isPlaying');
+        isUserPlaying = await hgetAsync('username:' + data.username, 'isPlaying');
     }
     catch(err){
         console.log(err);
     }
-    console.log('isPlaying: ' + result);
-    if(result === 'true'){
+    console.log('isPlaying: ' + isUserPlaying);
+    
+    if(isUserPlaying === 'true'){
         console.log('already playing!');
         return;
     }
 
-    if(result === null){
+    if(isUserPlaying !== null && isUserPlaying !== 'false'){
+        console.log('database error');
+        return;
+    }
+
+    //Start game session
+    const deckSet = new Set(fullDeck);
+    const cardForPlayer1st = drawACard(deckSet);
+    const cardForPlayer2nd = drawACard(deckSet);
+    const cardForDealer = drawACard(deckSet);
+
+    //Check Blackjack condition
+    let hasBlackjack = false;
+    let win = 0;
+    let draw = 0;
+    const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
+    if(initialHandValue == 21){
+        hasBlackjack = true;
+        const playResult = firstHandBlackjackPlayResult(ws, data.username, cardForPlayer1st, cardForPlayer2nd, cardForDealer);
+        if(playResult === 1){ //win
+            win = 1;
+        }
+        else{ //draw
+            draw = 1;
+        }
+    }
+
+    //Update player status in db
+    if(isUserPlaying === null){
         console.log('new player start');
         let redisHSETResult = {};
         try{
-            redisHSETResult = await redisClient.hmset(
+            redisHSETResult = await hmsetAsync(
                 'username:' + data.username, 
-                'isPlaying', 'true', 
-                'wins', 0, 
+                'isPlaying', (!hasBlackjack).toString(), 
+                'wins', win, 
                 'loses', 0, 
-                'draws', 0
+                'draws', draw
             );
         }
         catch(err){
@@ -138,36 +200,34 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         }
         console.log('new player HSET result: ' + redisHSETResult);
     }
-    else if(result === 'false'){
+    else if(isUserPlaying === 'false'){
         console.log('already have account! start playing');
         let redisHSETResult = {};
         try{
-            redisHSETResult = await redisClient.hset(
-                'username:' + data.username, 
-                'isPlaying', 'true'
-            );
+            if(hasBlackjack){
+                redisHSETResult = await hincrbyAsync(
+                    'username:' + data.username, 
+                    'wins', win
+                );
+            }
+            else{
+                redisHSETResult = await hsetAsync(
+                    'username:' + data.username, 
+                    'isPlaying', 'true'
+                );
+            }
         }
         catch(err){
             console.log(err);
         }
         console.log('isPlaying HSET result: ' + redisHSETResult);
     }
-    else{
-        console.log('unwanted database result');
-        return;
-    }
-   
-    //Start game session
-    const deckSet = new Set(fullDeck);
-    const cardForDealer = drawACard(deckSet);
-    const cardForPlayer1st = drawACard(deckSet);
-    const cardForPlayer2nd = drawACard(deckSet);
-    
-    //TODO: check blackjack condition
 
-    let redisHSETResult = {};
+    //Create game session (if no blackjack)
+    if(!hasBlackjack){
+        let redisHSETResult = {};
         try{
-            redisHSETResult = await redisClient.hmset(
+            redisHSETResult = await hmsetAsync(
                 'session:' + data.username, 
                 'lastActionTime', Date.now(), 
                 'dealer-hand', JSON.stringify(cardForDealer), 
@@ -177,8 +237,9 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         catch(err){
             console.log(err);
         }
-        console.log('new player HSET result: ' + redisHSETResult);
-
+        console.log('new session HSET result: ' + redisHSETResult);    
+    }
+    
     //Response
     const sc_startGame = {
         "event" : "sc_startGame",

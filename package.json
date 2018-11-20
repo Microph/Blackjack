@@ -19,6 +19,7 @@
   "homepage": "https://github.com/Microph/Blackjack#readme",
   "dependencies": {
     "express": "^4.16.4",
+    "npm": "^6.4.1",
     "redis": "^2.8.0",
     "ws": "^6.1.2"
   },
