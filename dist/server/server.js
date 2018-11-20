@@ -55,8 +55,46 @@ const isAcceptableUserName = function (name) {
         return false;
     return true;
 };
+//Game data
+const cardValue = new Map([
+    ['AS', 11], ['AH', 11], ['AD', 11], ['AC', 11],
+    ['2S', 2], ['2H', 2], ['2D', 2], ['2C', 2],
+    ['3S', 3], ['3H', 3], ['3D', 3], ['3C', 3],
+    ['4S', 4], ['4H', 4], ['4D', 4], ['4C', 4],
+    ['5S', 5], ['5H', 5], ['5D', 5], ['5C', 5],
+    ['6S', 6], ['6H', 6], ['6D', 6], ['6C', 6],
+    ['7S', 7], ['7H', 7], ['7D', 7], ['7C', 7],
+    ['8S', 8], ['8H', 8], ['8D', 8], ['8C', 8],
+    ['9S', 9], ['9H', 9], ['9D', 9], ['9C', 9],
+    ['10S', 10], ['10H', 10], ['10D', 10], ['10C', 10],
+    ['JS', 10], ['JH', 10], ['JD', 10], ['JC', 10],
+    ['QS', 10], ['QH', 10], ['QD', 10], ['QC', 10],
+    ['KS', 10], ['KH', 10], ['KD', 10], ['KC', 10],
+]);
+const fullDeck = new Set([
+    'AS', 'AH', 'AD', 'AC',
+    '2S', '2H', '2D', '2C',
+    '3S', '3H', '3D', '3C',
+    '4S', '4H', '4D', '4C',
+    '5S', '5H', '5D', '5C',
+    '6S', '6H', '6D', '6C',
+    '7S', '7H', '7D', '7C',
+    '8S', '8H', '8D', '8C',
+    '9S', '9H', '9D', '9C',
+    '10S', '10H', '10D', '10C',
+    'JS', 'JH', 'JD', 'JC',
+    'QS', 'QH', 'QD', 'QC',
+    'KS', 'KH', 'KD', 'KC',
+]);
+//Game functions
+const drawACard = function (deckSet) {
+    const deckArray = Array.from(deckSet);
+    const drewCard = deckArray[Math.floor(Math.random() * deckArray.length)];
+    deckSet.delete(drewCard);
+    return drewCard;
+};
 //APIs
-const startGame = function (ws, data) {
+const cs_startGame = function (ws, data) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!isAcceptableUserName(data.username))
             return;
@@ -75,63 +113,77 @@ const startGame = function (ws, data) {
         }
         if (result === null) {
             console.log('new player start');
-            let setResult = {};
+            let redisHSETResult = {};
             try {
-                setResult = yield redisClient.hmset('username:' + data.username, 'isPlaying', 'true', 'wins', 0, 'loses', 0, 'draws', 0);
+                redisHSETResult = yield redisClient.hmset('username:' + data.username, 'isPlaying', 'true', 'wins', 0, 'loses', 0, 'draws', 0);
             }
             catch (err) {
                 console.log(err);
             }
-            console.log('set result: ' + setResult);
+            console.log('new player HSET result: ' + redisHSETResult);
         }
         else if (result === 'false') {
             console.log('already have account! start playing');
-            let setResult = {};
+            let redisHSETResult = {};
             try {
-                setResult = yield redisClient.hset('username:' + data.username, 'isPlaying', 'true');
+                redisHSETResult = yield redisClient.hset('username:' + data.username, 'isPlaying', 'true');
             }
             catch (err) {
                 console.log(err);
             }
-            console.log('set result: ' + setResult);
+            console.log('isPlaying HSET result: ' + redisHSETResult);
         }
         else {
             console.log('unwanted database result');
             return;
         }
         //Start game session
-        const output = {
-            "event": "startGame",
+        const deckSet = new Set(fullDeck);
+        const cardForDealer = drawACard(deckSet);
+        const cardForPlayer1st = drawACard(deckSet);
+        const cardForPlayer2nd = drawACard(deckSet);
+        //TODO: check blackjack condition
+        let redisHSETResult = {};
+        try {
+            redisHSETResult = yield redisClient.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
+        }
+        catch (err) {
+            console.log(err);
+        }
+        console.log('new player HSET result: ' + redisHSETResult);
+        //Response
+        const sc_startGame = {
+            "event": "sc_startGame",
             "data": {
-                "dealer-hand": ["2D"],
-                "player-hand": ["10H", "2C"]
+                "dealer-hand": [cardForDealer],
+                "player-hand": [cardForPlayer1st, cardForPlayer2nd]
             }
         };
-        ws.send(JSON.stringify(output));
+        ws.send(JSON.stringify(sc_startGame));
     });
 };
-const hit = function (ws, data) {
+const cs_hit = function (ws, data) {
     if (!isAcceptableUserName(data.username))
         return;
-    console.log('hit! ' + data.username);
+    console.log('cs_hit! ' + data.username);
 };
-const stand = function (ws, data) {
+const cs_stand = function (ws, data) {
     if (!isAcceptableUserName(data.username))
         return;
-    console.log('stand! ' + data.username);
+    console.log('cs_stand! ' + data.username);
 };
-const leaderboard = function (ws, data) {
-    console.log('leaderboard!');
+const cs_leaderboard = function (ws, data) {
+    console.log('cs_leaderboard!');
 };
 //Bindings
 const bind = function (eventName, callback) {
     callbacks[eventName] = callbacks[eventName] || [];
     callbacks[eventName].push(callback);
 };
-bind('startGame', startGame);
-bind('hit', hit);
-bind('stand', stand);
-bind('leaderboard', leaderboard);
+bind('cs_startGame', cs_startGame);
+bind('cs_hit', cs_hit);
+bind('cs_stand', cs_stand);
+bind('cs_leaderboard', cs_leaderboard);
 setInterval(() => {
     wss.clients.forEach((ws) => {
         if (!ws.isAlive) {
