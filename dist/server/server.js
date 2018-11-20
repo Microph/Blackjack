@@ -115,14 +115,12 @@ const checkHandValue = function (hand) {
     }
     return totalValue;
 };
-const startDealerPlayAndGetGameResult = function (playerHand, dealer1stCard) {
+const startDealerPlayAndGetGameResult = function (playerHand, dealerHand) {
     const deckSet = new Set(fullDeck);
-    deckSet.delete(dealer1stCard);
+    deckSet.delete(dealerHand[0]);
     playerHand.forEach(card => {
         deckSet.delete(card);
     });
-    const dealerHand = new Array();
-    dealerHand.push(dealer1stCard);
     let dealerScore = 0;
     while (true) {
         dealerScore = checkHandValue(dealerHand);
@@ -181,12 +179,16 @@ const cs_startGame = function (ws, data) {
         const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
         if (initialHandValue == 21) {
             hasBlackjack = true;
-            playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealer);
+            playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], [cardForDealer]);
             if (playResult === 1) {
                 win = 1;
             }
-            else {
+            else if (playResult === 0) {
                 draw = 1;
+            }
+            else {
+                console.log("How can you lose when you get blackjack?? (shouldn't be here)");
+                return;
             }
         }
         //Update player status in db
@@ -294,7 +296,16 @@ const cs_hit = function (ws, data) {
         //Check bust
         const playerHandValue = checkHandValue(playerHandArray);
         if (playerHandValue > 21) {
-            //TODO: implement
+            try {
+                yield Promise.all([
+                    redisClient.hsetAsync('username:' + data.username, 'isPlaying', 'false'),
+                    redisClient.hincrbyAsync('username:' + data.username, 'loses', 1),
+                    redisClient.delAsync('session:' + data.username)
+                ]);
+            }
+            catch (err) {
+                console.log(err);
+            }
         }
         //Response
         const sc_hit = {
@@ -308,9 +319,70 @@ const cs_hit = function (ws, data) {
     });
 };
 const cs_stand = function (ws, data) {
-    if (!isAcceptableUserName(data.username))
-        return;
-    console.log('cs_stand! ' + data.username);
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!isAcceptableUserName(data.username))
+            return;
+        console.log('cs_stand! ' + data.username);
+        let isUserPlaying = {};
+        try {
+            isUserPlaying = yield redisClient.hgetAsync('username:' + data.username, 'isPlaying');
+        }
+        catch (err) {
+            console.log(err);
+        }
+        console.log('isPlaying: ' + isUserPlaying);
+        if (isUserPlaying !== 'true') {
+            console.log('user is not playing!');
+            return;
+        }
+        try {
+            yield redisClient.watchAsync('session:' + data.username);
+        }
+        catch (err) {
+            console.log(err);
+        }
+        //get current hand
+        let cardsDataFromSession = [];
+        try {
+            cardsDataFromSession = yield Promise.all([
+                redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+            ]);
+        }
+        catch (err) {
+            console.log(err);
+        }
+        const dealerHand = cardsDataFromSession[0];
+        const dealerHandArray = JSON.parse(dealerHand);
+        const playerHand = cardsDataFromSession[1];
+        const playerHandArray = JSON.parse(playerHand);
+        console.log(playerHandArray);
+        //Dealer start playing
+        let win = 0;
+        let draw = 0;
+        let lose = 0;
+        let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
+        if (playResult === 1) {
+            win = 1;
+        }
+        else if (playResult === 0) {
+            draw = 1;
+        }
+        else {
+            lose = 1;
+        }
+        //Update player status in db
+        redisClient.hmsetAsync('username:' + data.username, 'isPlaying', 'false', 'wins', win, 'loses', lose, 'draws', draw);
+        //Response
+        const sc_stand = {
+            "event": "sc_stand",
+            "data": {
+                "dealer-hand": dealerHandArray,
+                "player-hand": playerHandArray
+            }
+        };
+        ws.send(JSON.stringify(sc_stand));
+    });
 };
 const cs_leaderboard = function (ws, data) {
     console.log('cs_leaderboard!');
