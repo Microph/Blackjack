@@ -182,7 +182,6 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     }
 
     //Start game session
-    const asyncTasks = [];
     const deckSet = new Set(fullDeck);
     const cardForPlayer1st = drawACard(deckSet);
     const cardForPlayer2nd = drawACard(deckSet);
@@ -210,52 +209,57 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     }
 
     //Update player status in db
+    const redisMulti = redisClient.multi();
     if(isUserPlaying === null){
         console.log('new player start');
-        asyncTasks.push( redisClient.hmsetAsync(
+        redisMulti.hmset(
             'username:' + data.username, 
             'isPlaying', (!hasBlackjack).toString(), 
             'wins', win, 
             'loses', 0, 
             'draws', draw
-        )); 
+        ); 
     }
     else if(isUserPlaying === 'false'){
         console.log('already have account! start playing');
         if(hasBlackjack){
             if(playResult === 1){
-                asyncTasks.push( redisClient.hincrbyAsync(
+                redisMulti.hincrby(
                     'username:' + data.username, 
                     'wins', 1,
-                ));
+                );
             }
             else{
-                asyncTasks.push( redisClient.hincrbyAsync(
+                redisMulti.hincrby(
                     'username:' + data.username, 
                     'draw', 1,
-                ));
+                );
             }
         }
         else{
-            asyncTasks.push( redisClient.hsetAsync(
+            redisMulti.hset(
                 'username:' + data.username, 
                 'isPlaying', 'true'
-            ));
+            );
         }
     }
 
     //Create game session (if no blackjack)
     if(!hasBlackjack){
-        asyncTasks.push( redisClient.hmsetAsync(
+        redisMulti.hmset(
             'session:' + data.username, 
             'lastActionTime', Date.now(), 
             'dealer-hand', JSON.stringify([cardForDealer]), 
             'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])
-        ));
+        );
     }
 
     try{
-         await Promise.all(asyncTasks);
+         const execResult = await redisMulti.execAsync();
+         if(execResult === null){
+            console.log('transaction error');
+            return;
+        }
     }
     catch(err){
         console.log(err);
@@ -323,39 +327,41 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     playerHandArray.push(drawACard(deckSet));
 
     //Save to database
-    let result = {};
     try{
-        result = await redisClient.multi().hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray)).execAsync();
+        const execResult = await redisClient.multi()
+            .hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray))
+            .execAsync();
+            if(execResult === null){
+                console.log('transaction failed');
+                return;
+            }
     }
     catch(err){
         console.log(err);
     }
 
-    console.log('result' + result);
-    if(result === null){
-        console.log('Hit transaction failed');
-        return;
-    }
-
     //Check bust
     const playerHandValue = checkHandValue(playerHandArray);
     if(playerHandValue > 21){
+        const redisMulti = redisClient.multi();
+        redisMulti.hset(
+            'username:' + data.username, 
+            'isPlaying', 'false' 
+        );
+        redisMulti.hincrby(
+            'username:' + data.username, 
+            'loses', 1,
+        );
+        redisMulti.del(
+            'session:' + data.username
+        );
+
         try{
-            await Promise.all([
-                redisClient.hsetAsync(
-                    'username:' + data.username, 
-                    'isPlaying', 'false' 
-                ),
-    
-                redisClient.hincrbyAsync(
-                    'username:' + data.username, 
-                    'loses', 1,
-                ),
-    
-                redisClient.delAsync(
-                    'session:' + data.username
-                )
-            ]);
+            const execResult = await redisMulti.execAsync();
+            if(execResult === null){
+                console.log('transaction error');
+                return;
+            }
         }
         catch(err){
             console.log(err);
@@ -417,24 +423,46 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     let draw = 0;
     let lose = 0;
     let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
-    if(playResult === 1){
-        win = 1;
-    }
-    else if(playResult === 0){
-        draw = 1;
-    }
-    else{
-        lose = 1;
-    }
 
     //Update player status in db
-    redisClient.hmsetAsync(
+    const redisMulti = redisClient.multi();
+    if(playResult === 1){
+        redisMulti.hincrby(
+            'username:' + data.username, 
+            'wins', 1,
+        );
+    }
+    else if(playResult === 0){
+        redisMulti.hincrby(
+            'username:' + data.username, 
+            'draws', 1,
+        );
+    }
+    else{
+        redisMulti.hincrby(
+            'username:' + data.username, 
+            'loses', 1,
+        );
+    }
+
+    redisMulti.hset(
         'username:' + data.username, 
-        'isPlaying', 'false', 
-        'wins', win, 
-        'loses', lose, 
-        'draws', draw
+        'isPlaying', 'false' 
     );
+    redisMulti.del(
+        'session:' + data.username
+    );
+
+    try{
+        const execResult = await redisMulti.execAsync();
+        if(execResult === null){
+            console.log('transaction error');
+            return;
+        }
+    }
+    catch(err){
+        console.log(err);
+    }
 
     //Response
     const sc_stand = {
