@@ -94,7 +94,7 @@ const drawACard = function (deckSet) {
     return drewCard;
 };
 const checkHandValue = function (hand) {
-    console.log('hand: ' + hand.toString());
+    console.log('\nhand: ' + hand.toString());
     let totalValue = 0;
     let aces = 0;
     hand.forEach(element => {
@@ -109,7 +109,7 @@ const checkHandValue = function (hand) {
             console.log('error: bad card symbol');
         }
     });
-    console.log('value not included aces: ' + totalValue + '\naces: ' + aces);
+    console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
     for (let i = 0; i < aces; i++) {
         if (totalValue + 11 <= 21) {
             totalValue += 11;
@@ -120,9 +120,35 @@ const checkHandValue = function (hand) {
     }
     return totalValue;
 };
-const firstHandBlackjackPlayResult = function (ws, username, cardForPlayer1st, cardForPlayer2nd, cardForDealer) {
-    //TODO: implement
-    return 0;
+const startDealerPlayAndGetGameResult = function (playerHand, dealer1stCard) {
+    const deckSet = new Set(fullDeck);
+    deckSet.delete(dealer1stCard);
+    playerHand.forEach(card => {
+        deckSet.delete(card);
+    });
+    const dealerHand = new Array();
+    dealerHand.push(dealer1stCard);
+    let dealerScore = 0;
+    while (true) {
+        dealerScore = checkHandValue(dealerHand);
+        if (dealerScore >= 17) {
+            break;
+        }
+        dealerHand.push(drawACard(deckSet));
+    }
+    const playerScore = checkHandValue(playerHand);
+    if (playerScore > dealerScore) {
+        console.log('player WIN');
+        return 1;
+    }
+    else if (playerScore == dealerScore) {
+        console.log('the match is DRAW');
+        return 0;
+    }
+    else {
+        console.log('player LOSE');
+        return -1;
+    }
 };
 //APIs
 const cs_startGame = function (ws, data) {
@@ -155,14 +181,15 @@ const cs_startGame = function (ws, data) {
         let hasBlackjack = false;
         let win = 0;
         let draw = 0;
+        let playResult = 0;
         const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
         if (initialHandValue == 21) {
             hasBlackjack = true;
-            const playResult = firstHandBlackjackPlayResult(ws, data.username, cardForPlayer1st, cardForPlayer2nd, cardForDealer);
-            if (playResult === 1) { //win
+            playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealer);
+            if (playResult === 1) {
                 win = 1;
             }
-            else { //draw
+            else {
                 draw = 1;
             }
         }
@@ -183,7 +210,12 @@ const cs_startGame = function (ws, data) {
             let redisHSETResult = {};
             try {
                 if (hasBlackjack) {
-                    redisHSETResult = yield hincrbyAsync('username:' + data.username, 'wins', win);
+                    if (playResult === 1) {
+                        redisHSETResult = yield hincrbyAsync('username:' + data.username, 'wins', 1);
+                    }
+                    else {
+                        redisHSETResult = yield hincrbyAsync('username:' + data.username, 'draw', 1);
+                    }
                 }
                 else {
                     redisHSETResult = yield hsetAsync('username:' + data.username, 'isPlaying', 'true');

@@ -101,7 +101,7 @@ const drawACard = function(deckSet: Set<string>) : string{
 }
 
 const checkHandValue = function(hand: Array<string>) : number{
-    console.log('hand: ' + hand.toString());
+    console.log('\nhand: ' + hand.toString());
     let totalValue = 0;
     let aces = 0;
     hand.forEach(element => {
@@ -116,7 +116,7 @@ const checkHandValue = function(hand: Array<string>) : number{
             console.log('error: bad card symbol');
         }
     });
-    console.log('value not included aces: ' + totalValue + '\naces: ' + aces);
+    console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
 
     for(let i=0; i<aces; i++){
         if(totalValue + 11 <= 21){
@@ -130,9 +130,37 @@ const checkHandValue = function(hand: Array<string>) : number{
     return totalValue;
 }
 
-const firstHandBlackjackPlayResult = function(ws: WebSocket, username: string, cardForPlayer1st: string, cardForPlayer2nd: string, cardForDealer: string) : number{
-    //TODO: implement
-    return 0;
+const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, dealer1stCard: string) : number{
+    const deckSet = new Set(fullDeck);
+    deckSet.delete(dealer1stCard);
+    playerHand.forEach(card => {
+        deckSet.delete(card);
+    });
+    
+    const dealerHand = new Array<string>();
+    dealerHand.push(dealer1stCard);
+    let dealerScore = 0;
+    while(true){
+        dealerScore = checkHandValue(dealerHand);
+        if(dealerScore >= 17){
+            break;
+        }
+        dealerHand.push(drawACard(deckSet));
+    }
+
+    const playerScore = checkHandValue(playerHand);
+    if (playerScore > dealerScore){
+        console.log('player WIN');
+        return 1;
+    }
+    else if(playerScore == dealerScore){
+        console.log('the match is DRAW');
+        return 0;
+    }
+    else{
+        console.log('player LOSE');
+        return -1;
+    }
 }
 
 //APIs
@@ -170,14 +198,15 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     let hasBlackjack = false;
     let win = 0;
     let draw = 0;
+    let playResult = 0;
     const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
     if(initialHandValue == 21){
         hasBlackjack = true;
-        const playResult = firstHandBlackjackPlayResult(ws, data.username, cardForPlayer1st, cardForPlayer2nd, cardForDealer);
-        if(playResult === 1){ //win
+        playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealer);
+        if(playResult === 1){
             win = 1;
         }
-        else{ //draw
+        else{
             draw = 1;
         }
     }
@@ -205,10 +234,18 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         let redisHSETResult = {};
         try{
             if(hasBlackjack){
-                redisHSETResult = await hincrbyAsync(
-                    'username:' + data.username, 
-                    'wins', win
-                );
+                if(playResult === 1){
+                    redisHSETResult = await hincrbyAsync(
+                        'username:' + data.username, 
+                        'wins', 1,
+                    );
+                }
+                else{
+                    redisHSETResult = await hincrbyAsync(
+                        'username:' + data.username, 
+                        'draw', 1,
+                    );
+                }
             }
             else{
                 redisHSETResult = await hsetAsync(
