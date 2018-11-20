@@ -247,7 +247,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         asyncTasks.push( redisClient.hmsetAsync(
             'session:' + data.username, 
             'lastActionTime', Date.now(), 
-            'dealer-hand', JSON.stringify(cardForDealer), 
+            'dealer-hand', JSON.stringify([cardForDealer]), 
             'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])
         ));
     }
@@ -304,14 +304,17 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     catch(err){
         console.log(err);
     }
-    const dealer1stCard = cardsDataFromSession[0];
+    const dealerHand = cardsDataFromSession[0];
+    const dealerHandArray: Array<string> = JSON.parse(dealerHand);
     const playerHand = cardsDataFromSession[1];
     const playerHandArray: Array<string> = JSON.parse(playerHand);
     console.log(playerHandArray);
 
     //draw
     const deckSet = new Set(fullDeck);
-    deckSet.delete(dealer1stCard);
+    dealerHandArray.forEach(card => {
+        deckSet.delete(card);
+    });
     playerHandArray.forEach(card => {
         deckSet.delete(card);
     });
@@ -342,7 +345,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     const sc_hit = {
         "event" : "sc_hit",
         "data" : {
-            "dealer-hand" : [dealer1stCard],
+            "dealer-hand" : dealerHandArray,
             "player-hand" : playerHandArray
         }
     };

@@ -210,7 +210,7 @@ const cs_startGame = function (ws, data) {
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            asyncTasks.push(redisClient.hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify(cardForDealer), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])));
+            asyncTasks.push(redisClient.hmsetAsync('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify([cardForDealer]), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])));
         }
         try {
             yield Promise.all(asyncTasks);
@@ -264,13 +264,16 @@ const cs_hit = function (ws, data) {
         catch (err) {
             console.log(err);
         }
-        const dealer1stCard = cardsDataFromSession[0];
+        const dealerHand = cardsDataFromSession[0];
+        const dealerHandArray = JSON.parse(dealerHand);
         const playerHand = cardsDataFromSession[1];
         const playerHandArray = JSON.parse(playerHand);
         console.log(playerHandArray);
         //draw
         const deckSet = new Set(fullDeck);
-        deckSet.delete(dealer1stCard);
+        dealerHandArray.forEach(card => {
+            deckSet.delete(card);
+        });
         playerHandArray.forEach(card => {
             deckSet.delete(card);
         });
@@ -297,7 +300,7 @@ const cs_hit = function (ws, data) {
         const sc_hit = {
             "event": "sc_hit",
             "data": {
-                "dealer-hand": [dealer1stCard],
+                "dealer-hand": dealerHandArray,
                 "player-hand": playerHandArray
             }
         };
