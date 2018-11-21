@@ -55,6 +55,8 @@ const isAcceptableUserName = function(name: string) : boolean{
 }
 
 //Game data
+const TURN_TIME_LIMIT : number = 10000;
+const sessionTimeoutIndexMap: Map<string, number> = new Map<string, number>();
 const cardValue : Map<string, number> = new Map<string, number>([
     ['AS', 11], ['AH', 11], ['AD', 11], ['AC', 11],
     ['2S', 2], ['2H', 2], ['2D', 2], ['2C', 2],
@@ -70,7 +72,6 @@ const cardValue : Map<string, number> = new Map<string, number>([
     ['QS', 10], ['QH', 10], ['QD', 10], ['QC', 10],
     ['KS', 10], ['KH', 10], ['KD', 10], ['KC', 10],
 ]);
-
 const fullDeck : Set<string> = new Set<string>([
     'AS', 'AH', 'AD', 'AC',
     '2S', '2H', '2D', '2C',
@@ -86,8 +87,6 @@ const fullDeck : Set<string> = new Set<string>([
     'QS', 'QH', 'QD', 'QC',
     'KS', 'KH', 'KD', 'KC',
 ]);
-
-const sessionTimeoutIndexMap: Map<string, number> = new Map<string, number>();
 
 //Game functions
 const drawACard = function(deckSet: Set<string>) : string{
@@ -273,7 +272,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
 
     //Create game session (if no blackjack)
     if(!hasBlackjack){
-        const timeoutIndex = await setTimeout(loseByTimeout, 10000, data.username, ws);
+        const timeoutIndex = await setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
         sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         redisMulti.hmset(
             'session:' + data.username, 
@@ -344,7 +343,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     //Check timeout
     const lastActionTimeString = dataFromSession[2];
     const lastActionTime = Number(lastActionTimeString);
-    if(Date.now() - lastActionTime >= 10000){
+    if(Date.now() - lastActionTime >= TURN_TIME_LIMIT){
         loseByTimeout(data.username, ws);
         return;
     }
@@ -406,7 +405,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         }
     }
     else{
-        const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username, ws);
+        const timeoutIndex = setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
         sessionTimeoutIndexMap.set(data.username, timeoutIndex);
     }
     
@@ -460,7 +459,7 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     //Check timeout
     const lastActionTimeString = dataFromSession[2];
     const lastActionTime = Number(lastActionTimeString);
-    if(Date.now() - lastActionTime >= 10000){
+    if(Date.now() - lastActionTime >= TURN_TIME_LIMIT){
         loseByTimeout(data.username, ws);
         return;
     }
