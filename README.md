@@ -1,6 +1,8 @@
 # Blackjack
 
-Playable at: https://blackjack-by-microph.herokuapp.com/
+- Rough UI Playable: https://blackjack-by-microph.herokuapp.com/
+- Server: TypeScript Node
+- Database: Redis
   
 ## APIs<br/>
 Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
