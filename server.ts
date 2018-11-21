@@ -26,11 +26,19 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('message', (message: string) => {
-        let jsonReqObj = JSON.parse(message);
+        console.log('receieve: ' + message);
+        let jsonReqObj = {}
+        try{
+            jsonReqObj = JSON.parse(message);
+        }
+        catch(err){
+            console.log('bad client message' + err);
+            return;
+        }
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
 
-    ws.send('BLACKJACK ONLINE');
+    ws.send('Enter your name and press start!');
 });
 
 const processEvent = function(ws: WebSocket, eventName: string, data: JSON){
@@ -569,3 +577,5 @@ server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address() as net.AddressInfo;
     console.log('Server started on port ' + port);
 });
+
+require('./routes')(app);

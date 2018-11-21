@@ -29,7 +29,15 @@ wss.on('connection', (ws) => {
         ws.isAlive = true;
     });
     ws.on('message', (message) => {
-        let jsonReqObj = JSON.parse(message);
+        console.log('receieve: ' + message);
+        let jsonReqObj = {};
+        try {
+            jsonReqObj = JSON.parse(message);
+        }
+        catch (err) {
+            console.log('bad client message' + err);
+            return;
+        }
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
     ws.send('BLACKJACK ONLINE');
@@ -487,4 +495,5 @@ server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address();
     console.log('Server started on port ' + port);
 });
+require('./routes')(app);
 //# sourceMappingURL=server.js.map
