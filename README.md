@@ -1,9 +1,9 @@
 # Blackjack
 
 Playable at: https://blackjack-by-microph.herokuapp.com/
-
+  
 APIs
-Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
+  Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
 ```json
 {
   "event" : String,
@@ -21,7 +21,6 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
   }
 ```
-
   Server -> Client
 ```json
   {
@@ -33,7 +32,7 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
   }
 ```
-
+  
 - Hit
   Client  -> Server
 ```json
@@ -44,7 +43,6 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
   }
 ```
-
   Server -> Client
 ```json
   {
@@ -58,7 +56,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
 
 - Stand
-    Client  -> Server
+  Client  -> Server
   ```json
     {
       "event" : "cs_stand",
@@ -66,9 +64,8 @@ Since I use websocket protocol for this project, I create a custom data format f
         "username" : String
       }
     }
-```
-
-    Server -> Client
+``` 
+  Server -> Client
 ```json
     {
       "event" : "sc_stand",
@@ -81,7 +78,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
  
 - Leaderboard
-    Client  -> Server
+  Client  -> Server
 ```json
     {
       "event" : "cs_leaderboard",
@@ -89,18 +86,17 @@ Since I use websocket protocol for this project, I create a custom data format f
       }
     }
 ```
-
-    Server -> Client
-  ```json
+  Server -> Client
+```json
     {
       "event" : "sc_leaderboard",
       "data" : {
         "leaderboard" : Array<JSON>
       }
     }
-  
+```
 - Lose By Timeout
-    Server -> Client
+  Server -> Client
 ```json
     {
       "event" : "sc_loseByTimeout",
@@ -108,4 +104,4 @@ Since I use websocket protocol for this project, I create a custom data format f
           "gameStatus" : "LOSE"
       }
     }
-  ```
+```
