@@ -1,6 +1,9 @@
 {
   "name": "blackjack",
   "version": "1.0.0",
+  "engines" :{
+    "node" : "8.11.4"
+  },
   "description": "",
   "scripts": {
     "start": "node ./dist/server/server.js",
