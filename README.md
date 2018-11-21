@@ -15,7 +15,9 @@ Since I use websocket protocol for this project, I create a custom data format f
 
 ### Start Game<br/>
 
-Client -> Server
+Client -> Server<br/>
+
+*Game will start only if the input name is not empty and contains no spaces
 ```json
   {
     "event" : "cs_startGame",
