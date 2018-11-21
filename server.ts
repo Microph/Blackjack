@@ -560,7 +560,7 @@ const cs_leaderboard = async function(ws: WebSocket, data: JSON){
         await Promise.all(usernames.map(async (name) => {
             const userDetailFromDB = await redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
             leaderBoardDetail.push({
-                "username": name,
+                "username": name.substring(9, name.length),
                 "wins": userDetailFromDB[0],
                 "draws": userDetailFromDB[1],
                 "loses": userDetailFromDB[2],

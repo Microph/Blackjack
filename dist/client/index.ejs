@@ -15,9 +15,10 @@
           <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
             
             <h2 align="center">BLACKJACK</h2>
-            <div id="server-message">(server message)</div>
+            <h2 align="center" id="timer" hidden></h2>
+            <h4><div id="server-message"></div></h4>
             <div class="form-group">
-                <input type="text" class="form-control input-lg" id="username" name="username" placeholder="username">
+                <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
             </div>
             <button id="startGame_button" class="btn btn-lg btn-primary btn-block">Start Game</button>
             <button id="hit_button" class="btn btn-lg btn-primary btn-block">Hit!</button>
@@ -32,9 +33,66 @@
 
 <script>
     ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+    let timerIntervalObj = {};
+    let COUNTER = 10;
 
-    ws.onmessage = function (event) {
-        $('#server-message').text(event.data);
+    ws.onmessage = function (dataIn) {
+        $('#server-message').text(dataIn.data);
+        let jsonData = JSON.parse(dataIn.data);
+        switch(jsonData.event){
+            case 'sc_startGame' : handleStartGame(jsonData.data); break;
+            case 'sc_hit' : handleHit(jsonData.data); break;
+            case 'sc_stand' : handleStand(jsonData.data); break;
+            case 'sc_leaderboard' : handleLeaderboard(jsonData.data); break;
+            case 'sc_loseByTimeout' : handleLoseByTimeout(jsonData.data); break;
+            default: return;
+        }
+    };
+
+    function handleStartGame(data){
+        if(data.gameStatus === "PLAYING"){
+            $('#startGame_button').toggle(false);
+            $('#leaderboard_button').toggle(false);
+            $('#timer').toggle(true);
+            COUNTER = 10;
+            $('#timer').text(COUNTER);
+            timerIntervalObj = setInterval(function(){
+                if(COUNTER > 0) COUNTER --;
+                $('#timer').text(COUNTER);
+            }, 1000);
+        }
+    }
+
+    function handleHit(data){
+        if(data.gameStatus !== "PLAYING"){
+            $('#startGame_button').toggle(true);
+            $('#leaderboard_button').toggle(true);
+            $('#timer').toggle(false);
+            clearInterval(timerIntervalObj);
+        }
+        else{
+            COUNTER = 10;
+            $('#timer').text(COUNTER);
+        }
+    }
+
+    function handleStand(data){
+        if(data.gameStatus !== "PLAYING"){
+            $('#startGame_button').toggle(true);
+            $('#leaderboard_button').toggle(true);
+            $('#timer').toggle(false);
+            clearInterval(timerIntervalObj);
+        }
+    }
+
+    function handleLeaderboard(data){
+    }
+
+    function handleLoseByTimeout(data){
+        $('#startGame_button').toggle(true);
+        $('#leaderboard_button').toggle(true);
+        $('#timer').toggle(false);
+        clearInterval(timerIntervalObj);
     }
 
     $('#startGame_button').on('click',function (e) {
@@ -45,6 +103,8 @@
             }
         }
         ws.send(JSON.stringify(json));
+
+        $('#timer').toggle(true);
     });
 
     $('#hit_button').on('click',function (e) {

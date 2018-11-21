@@ -486,7 +486,7 @@ const cs_leaderboard = function (ws, data) {
             yield Promise.all(usernames.map((name) => __awaiter(this, void 0, void 0, function* () {
                 const userDetailFromDB = yield redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
                 leaderBoardDetail.push({
-                    "username": name,
+                    "username": name.substring(9, name.length),
                     "wins": userDetailFromDB[0],
                     "draws": userDetailFromDB[1],
                     "loses": userDetailFromDB[2],
