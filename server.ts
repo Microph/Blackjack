@@ -270,7 +270,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
             else{
                 redisMulti.hincrby(
                     'username:' + data.username, 
-                    'draw', 1,
+                    'draws', 1,
                 );
             }
         }
