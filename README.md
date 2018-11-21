@@ -2,8 +2,8 @@
 
 Playable at: https://blackjack-by-microph.herokuapp.com/
   
-APIs
-  Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
+APIs<br/>
+Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
 ```json
 {
   "event" : String,
@@ -11,7 +11,7 @@ APIs
 }
 ```
 
-- Start Game
+- Start Game<br/>
   Client  -> Server
 ```json
   {
@@ -33,7 +33,7 @@ APIs
   }
 ```
   
-- Hit
+- Hit<br/>
   Client  -> Server
 ```json
   {
@@ -55,7 +55,7 @@ APIs
   }
 ```
 
-- Stand
+- Stand<br/>
   Client  -> Server
   ```json
     {
@@ -77,7 +77,7 @@ APIs
     }
 ```
  
-- Leaderboard
+- Leaderboard<br/>
   Client  -> Server
 ```json
     {
@@ -95,7 +95,7 @@ APIs
       }
     }
 ```
-- Lose By Timeout
+- Lose By Timeout<br/>
   Server -> Client
 ```json
     {
