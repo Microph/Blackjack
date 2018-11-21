@@ -22,7 +22,7 @@ const callbacks = {};
 const redisClient = process.env.REDIS_URL ? redis.createClient(process.env.REDIS_URL)
     : redis.createClient(6379, '127.0.0.1');
 redisClient.on('connect', function () {
-    console.log('Redis client connected');
+    //console.log('Redis client connected');
 });
 wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -30,18 +30,18 @@ wss.on('connection', (ws) => {
         ws.isAlive = true;
     });
     ws.on('message', (message) => {
-        console.log('receieve: ' + message);
+        //console.log('receieve: ' + message);
         let jsonReqObj = {};
         try {
             jsonReqObj = JSON.parse(message);
         }
         catch (err) {
-            console.log('bad client message' + err);
+            //console.log('bad client message' + err);
             return;
         }
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
-    ws.send('Enter your name and press start!');
+    ws.send('Enter your name and play!');
 });
 const processEvent = function (ws, eventName, data) {
     let registeredCallbacks = callbacks[eventName];
@@ -100,7 +100,7 @@ const drawACard = function (deckSet) {
     return drewCard;
 };
 const checkHandValue = function (hand) {
-    console.log('\nhand: ' + hand.toString());
+    //console.log('\nhand: ' + hand.toString());
     let totalValue = 0;
     let aces = 0;
     hand.forEach(element => {
@@ -112,10 +112,10 @@ const checkHandValue = function (hand) {
             totalValue += mappedValue;
         }
         else {
-            console.log('error: bad card symbol');
+            //console.log('error: bad card symbol');
         }
     });
-    console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
+    //console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
     for (let i = 0; i < aces; i++) {
         if (totalValue + 11 <= 21) {
             totalValue += 11;
@@ -142,33 +142,33 @@ const startDealerPlayAndGetGameResult = function (playerHand, dealerHand) {
     }
     const playerScore = checkHandValue(playerHand);
     if (playerScore <= 21 && (dealerScore > 21 || playerScore > dealerScore)) {
-        console.log('player WIN');
+        //console.log('player WIN');
         return 1;
     }
     else if (playerScore == dealerScore) {
-        console.log('the match is DRAW');
+        //console.log('the match is DRAW');
         return 0;
     }
     else {
-        console.log('player LOSE');
+        //console.log('player LOSE');
         return -1;
     }
 };
 const loseByTimeout = function (username, ws) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('\n---timeout!---');
+        //console.log('\n---timeout!---');
         const redisMulti = redisClient.multi();
         redisMulti.hincrby('username:' + username, 'loses', 1);
         redisMulti.del('session:' + username);
         try {
             const execResult = yield redisMulti.execAsync();
             if (execResult === null) {
-                console.log('transaction error');
+                //console.log('transaction error');
                 return;
             }
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Response
         const sc_loseByTimeout = {
@@ -185,7 +185,7 @@ const cs_startGame = function (ws, data) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!isAcceptableUserName(data.username))
             return;
-        console.log('start game! ' + data.username);
+        //console.log('start game! ' + data.username);
         let redisResponses = [];
         try {
             redisResponses = yield Promise.all([
@@ -194,14 +194,14 @@ const cs_startGame = function (ws, data) {
             ]);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         const userHasAccount = redisResponses[0];
         const userHasSession = redisResponses[1];
-        console.log('Has account?: ' + userHasAccount);
-        console.log('Has session?: ' + userHasSession);
+        //console.log('Has account?: ' + userHasAccount);
+        //console.log('Has session?: ' + userHasSession);
         if (userHasSession === 1) {
-            console.log('already playing!');
+            //console.log('already playing!');
             return;
         }
         //Start game session
@@ -229,18 +229,18 @@ const cs_startGame = function (ws, data) {
                 gameStatus = "DRAW";
             }
             else {
-                console.log("How can you lose when you get blackjack?? (shouldn't be here)");
+                //console.log("How can you lose when you get blackjack?? (shouldn't be here)");
                 return;
             }
         }
         //Update player status in db
         const redisMulti = redisClient.multi();
         if (userHasAccount !== 1) {
-            console.log('new player start!');
+            //console.log('new player start!');
             redisMulti.hmset('username:' + data.username, 'wins', win, 'loses', 0, 'draws', draw);
         }
         else {
-            console.log('already have account! start playing');
+            //console.log('already have account! start playing');
             if (hasBlackjack) {
                 if (playResult === 1) {
                     redisMulti.hincrby('username:' + data.username, 'wins', 1);
@@ -259,12 +259,12 @@ const cs_startGame = function (ws, data) {
         try {
             const execResult = yield redisMulti.execAsync();
             if (execResult === null) {
-                console.log('transaction error');
+                //console.log('transaction error');
                 return;
             }
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Response
         const sc_startGame = {
@@ -282,17 +282,17 @@ const cs_hit = function (ws, data) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!isAcceptableUserName(data.username))
             return;
-        console.log('cs_hit! ' + data.username);
+        //console.log('cs_hit! ' + data.username);
         //check if playing
         let userHasSession = {};
         try {
             userHasSession = yield redisClient.existsAsync('session:' + data.username);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         if (userHasSession !== 1) {
-            console.log('user is not playing!');
+            //console.log('user is not playing!');
             return;
         }
         clearTimeout(sessionTimeoutIndexMap.get(data.username));
@@ -300,7 +300,7 @@ const cs_hit = function (ws, data) {
             yield redisClient.watchAsync('session:' + data.username);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err); 
         }
         //get current hand
         let dataFromSession = [];
@@ -312,7 +312,7 @@ const cs_hit = function (ws, data) {
             ]);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Check timeout
         const lastActionTimeString = dataFromSession[2];
@@ -325,7 +325,7 @@ const cs_hit = function (ws, data) {
         const dealerHandArray = JSON.parse(dealerHand);
         const playerHand = dataFromSession[1];
         const playerHandArray = JSON.parse(playerHand);
-        console.log(playerHandArray);
+        //console.log(playerHandArray);
         //draw
         let gameStatus = "PLAYING";
         const deckSet = new Set(fullDeck);
@@ -342,12 +342,12 @@ const cs_hit = function (ws, data) {
                 .hmset('session:' + data.username, 'playerHand', JSON.stringify(playerHandArray), 'lastActionTime', Date.now())
                 .execAsync();
             if (execResult === null) {
-                console.log('transaction failed');
+                //console.log('transaction failed');
                 return;
             }
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Check bust
         const playerHandValue = checkHandValue(playerHandArray);
@@ -359,12 +359,12 @@ const cs_hit = function (ws, data) {
             try {
                 const execResult = yield redisMulti.execAsync();
                 if (execResult === null) {
-                    console.log('transaction error');
+                    //console.log('transaction error');
                     return;
                 }
             }
             catch (err) {
-                console.log(err);
+                //console.log(err);
             }
         }
         else {
@@ -387,17 +387,17 @@ const cs_stand = function (ws, data) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!isAcceptableUserName(data.username))
             return;
-        console.log('cs_stand! ' + data.username);
+        //console.log('cs_stand! ' + data.username);
         let userHasSession = {};
         try {
             userHasSession = yield redisClient.existsAsync('session:' + data.username);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
-        console.log('userHasSession: ' + userHasSession);
+        //console.log('userHasSession: ' + userHasSession);
         if (userHasSession !== 1) {
-            console.log('user is not playing!');
+            //console.log('user is not playing!');
             return;
         }
         clearTimeout(sessionTimeoutIndexMap.get(data.username));
@@ -405,7 +405,7 @@ const cs_stand = function (ws, data) {
             yield redisClient.watchAsync('session:' + data.username);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err); 
         }
         //get current hand
         let dataFromSession = [];
@@ -417,7 +417,7 @@ const cs_stand = function (ws, data) {
             ]);
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Check timeout
         const lastActionTimeString = dataFromSession[2];
@@ -430,7 +430,7 @@ const cs_stand = function (ws, data) {
         const dealerHandArray = JSON.parse(dealerHand);
         const playerHand = dataFromSession[1];
         const playerHandArray = JSON.parse(playerHand);
-        console.log(playerHandArray);
+        //console.log(playerHandArray);
         //Dealer start playing
         let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
         //Update player status in db
@@ -452,12 +452,12 @@ const cs_stand = function (ws, data) {
         try {
             const execResult = yield redisMulti.execAsync();
             if (execResult === null) {
-                console.log('transaction error');
+                //console.log('transaction error');
                 return;
             }
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         //Response
         const sc_stand = {
@@ -473,13 +473,13 @@ const cs_stand = function (ws, data) {
 };
 const cs_leaderboard = function (ws, data) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('cs_leaderboard!');
+        //console.log('cs_leaderboard!');
         let usernames = [];
         try {
             usernames = yield redisClient.keysAsync('username:*');
         }
         catch (err) {
-            console.log(err);
+            //console.log(err);
         }
         let leaderBoardDetail = [];
         try {
@@ -494,7 +494,7 @@ const cs_leaderboard = function (ws, data) {
             })));
         }
         catch (err) {
-            console.log('operation failed');
+            //console.log('operation failed');
             return;
         }
         leaderBoardDetail.sort(function (a, b) { return (2 * b.wins + b.draws - b.loses) - (2 * a.wins + a.draws - a.loses); });
@@ -528,7 +528,7 @@ setInterval(() => {
 }, 10000);
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address();
-    console.log('Server started on port ' + port);
+    //console.log('Server started on port ' + port);
 });
 require('./routes')(app);
 //# sourceMappingURL=server.js.map

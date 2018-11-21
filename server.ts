@@ -16,7 +16,7 @@ const redisClient = process.env.REDIS_URL? redis.createClient(process.env.REDIS_
                                             : redis.createClient(6379, '127.0.0.1');
 
 redisClient.on('connect', function() {
-    console.log('Redis client connected');
+    //console.log('Redis client connected');
 });
 
 wss.on('connection', (ws: WebSocket) => {
@@ -27,19 +27,19 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('message', (message: string) => {
-        console.log('receieve: ' + message);
+        //console.log('receieve: ' + message);
         let jsonReqObj = {}
         try{
             jsonReqObj = JSON.parse(message);
         }
         catch(err){
-            console.log('bad client message' + err);
+            //console.log('bad client message' + err);
             return;
         }
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
 
-    ws.send('Enter your name and press start!');
+    ws.send('Enter your name and play!');
 });
 
 const processEvent = function(ws: WebSocket, eventName: string, data: JSON){
@@ -106,7 +106,7 @@ const drawACard = function(deckSet: Set<string>) : string{
 }
 
 const checkHandValue = function(hand: Array<string>) : number{
-    console.log('\nhand: ' + hand.toString());
+    //console.log('\nhand: ' + hand.toString());
     let totalValue = 0;
     let aces = 0;
     hand.forEach(element => {
@@ -118,10 +118,10 @@ const checkHandValue = function(hand: Array<string>) : number{
             totalValue += mappedValue;
         }
         else{
-            console.log('error: bad card symbol');
+            //console.log('error: bad card symbol');
         }
     });
-    console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
+    //console.log('value not included aces: ' + totalValue + '\naces: ' + aces + '\n');
 
     for(let i=0; i<aces; i++){
         if(totalValue + 11 <= 21){
@@ -153,21 +153,21 @@ const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, deal
 
     const playerScore = checkHandValue(playerHand);
     if (playerScore <= 21 && (dealerScore > 21 || playerScore > dealerScore) ){
-        console.log('player WIN');
+        //console.log('player WIN');
         return 1;
     }
     else if(playerScore == dealerScore){
-        console.log('the match is DRAW');
+        //console.log('the match is DRAW');
         return 0;
     }
     else{
-        console.log('player LOSE');
+        //console.log('player LOSE');
         return -1;
     }
 }
 
 const loseByTimeout = async function(username: string, ws: WebSocket){
-    console.log('\n---timeout!---');
+    //console.log('\n---timeout!---');
     const redisMulti = redisClient.multi();
     redisMulti.hincrby(
         'username:' + username, 
@@ -181,12 +181,12 @@ const loseByTimeout = async function(username: string, ws: WebSocket){
     try{
         const execResult = await redisMulti.execAsync();
         if(execResult === null){
-            console.log('transaction error');
+            //console.log('transaction error');
             return;
         }
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
 
     //Response
@@ -204,7 +204,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     if(!isAcceptableUserName(data.username))
         return;
 
-    console.log('start game! ' + data.username);
+    //console.log('start game! ' + data.username);
     let redisResponses: Array<number> = [];
     try{
         redisResponses = await Promise.all([
@@ -213,15 +213,15 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         ]);
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
     const userHasAccount = redisResponses[0];
     const userHasSession = redisResponses[1];
-    console.log('Has account?: ' + userHasAccount);
-    console.log('Has session?: ' + userHasSession);
+    //console.log('Has account?: ' + userHasAccount);
+    //console.log('Has session?: ' + userHasSession);
     
     if(userHasSession === 1){
-        console.log('already playing!');
+        //console.log('already playing!');
         return;
     }
 
@@ -251,7 +251,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
             gameStatus = "DRAW";
         }
         else{
-            console.log("How can you lose when you get blackjack?? (shouldn't be here)");
+            //console.log("How can you lose when you get blackjack?? (shouldn't be here)");
             return;
         }
     }
@@ -259,7 +259,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     //Update player status in db
     const redisMulti = redisClient.multi();
     if(userHasAccount !== 1){
-        console.log('new player start!');
+        //console.log('new player start!');
         redisMulti.hmset(
             'username:' + data.username,
             'wins', win, 
@@ -268,7 +268,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         ); 
     }
     else{
-        console.log('already have account! start playing');
+        //console.log('already have account! start playing');
         if(hasBlackjack){
             if(playResult === 1){
                 redisMulti.hincrby(
@@ -300,12 +300,12 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     try{
          const execResult = await redisMulti.execAsync();
          if(execResult === null){
-            console.log('transaction error');
+            //console.log('transaction error');
             return;
         }
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
     
     //Response
@@ -324,24 +324,26 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     if(!isAcceptableUserName(data.username))
         return;
 
-    console.log('cs_hit! ' + data.username);
+    //console.log('cs_hit! ' + data.username);
     //check if playing
     let userHasSession = {};
     try{
         userHasSession = await redisClient.existsAsync('session:' + data.username);
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
     
     if(userHasSession !== 1){
-        console.log('user is not playing!');
+        //console.log('user is not playing!');
         return;
     }
 
     clearTimeout(sessionTimeoutIndexMap.get(data.username));
     try{ await redisClient.watchAsync('session:' + data.username); }
-    catch(err){ console.log(err); }
+    catch(err){ 
+        //console.log(err); 
+    }
 
     //get current hand
     let dataFromSession: Array<string> = [];
@@ -353,7 +355,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         ]); 
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
 
     //Check timeout
@@ -368,7 +370,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     const dealerHandArray: Array<string> = JSON.parse(dealerHand);
     const playerHand = dataFromSession[1];
     const playerHandArray: Array<string> = JSON.parse(playerHand);
-    console.log(playerHandArray);
+    //console.log(playerHandArray);
 
     //draw
     let gameStatus = "PLAYING";
@@ -390,12 +392,12 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
                 )
             .execAsync();
             if(execResult === null){
-                console.log('transaction failed');
+                //console.log('transaction failed');
                 return;
             }
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
 
     //Check bust
@@ -414,12 +416,12 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         try{
             const execResult = await redisMulti.execAsync();
             if(execResult === null){
-                console.log('transaction error');
+                //console.log('transaction error');
                 return;
             }
         }
         catch(err){
-            console.log(err);
+            //console.log(err);
         }
     }
     else{
@@ -443,24 +445,26 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     if(!isAcceptableUserName(data.username))
         return;
 
-    console.log('cs_stand! ' + data.username);
+    //console.log('cs_stand! ' + data.username);
 
     let userHasSession = {};
     try{
         userHasSession = await redisClient.existsAsync('session:' + data.username);
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
-    console.log('userHasSession: ' + userHasSession);
+    //console.log('userHasSession: ' + userHasSession);
     if(userHasSession !== 1){
-        console.log('user is not playing!');
+        //console.log('user is not playing!');
         return;
     }
     
     clearTimeout(sessionTimeoutIndexMap.get(data.username));
     try{ await redisClient.watchAsync('session:' + data.username); }
-    catch(err){ console.log(err); }
+    catch(err){ 
+        //console.log(err); 
+    }
 
     //get current hand
     let dataFromSession: Array<string> = [];
@@ -472,7 +476,7 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
         ]); 
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
 
     //Check timeout
@@ -487,7 +491,7 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     const dealerHandArray: Array<string> = JSON.parse(dealerHand);
     const playerHand = dataFromSession[1];
     const playerHandArray: Array<string> = JSON.parse(playerHand);
-    console.log(playerHandArray);
+    //console.log(playerHandArray);
 
     //Dealer start playing
     let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
@@ -524,12 +528,12 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     try{
         const execResult = await redisMulti.execAsync();
         if(execResult === null){
-            console.log('transaction error');
+            //console.log('transaction error');
             return;
         }
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }
 
     //Response
@@ -545,14 +549,14 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
 }
 
 const cs_leaderboard = async function(ws: WebSocket, data: JSON){
-    console.log('cs_leaderboard!');
+    //console.log('cs_leaderboard!');
 
     let usernames :Array<string> = [];
     try{ 
         usernames = await redisClient.keysAsync('username:*'); 
     }
     catch(err){
-        console.log(err);
+        //console.log(err);
     }   
 
     let leaderBoardDetail: Array<object> = [];
@@ -568,7 +572,7 @@ const cs_leaderboard = async function(ws: WebSocket, data: JSON){
         }));
     }
     catch(err){
-        console.log('operation failed');
+        //console.log('operation failed');
         return;
     }
 
@@ -609,7 +613,7 @@ setInterval(() => {
 
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address() as net.AddressInfo;
-    console.log('Server started on port ' + port);
+    //console.log('Server started on port ' + port);
 });
 
 require('./routes')(app);
