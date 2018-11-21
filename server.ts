@@ -87,6 +87,8 @@ const fullDeck : Set<string> = new Set<string>([
     'KS', 'KH', 'KD', 'KC',
 ]);
 
+const sessionTimeoutIndexMap: Map<string, number> = new Map<string, number>();
+
 //Game functions
 const drawACard = function(deckSet: Set<string>) : string{
     const deckArray = Array.from(deckSet);
@@ -142,7 +144,7 @@ const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, deal
     }
 
     const playerScore = checkHandValue(playerHand);
-    if (playerScore > dealerScore){
+    if (playerScore <= 21 && (dealerScore > 21 || playerScore > dealerScore) ){
         console.log('player WIN');
         return 1;
     }
@@ -153,6 +155,30 @@ const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, deal
     else{
         console.log('player LOSE');
         return -1;
+    }
+}
+
+const loseByTimeout = async function(username: string){
+    console.log('---timeout!---');
+    const redisMulti = redisClient.multi();
+    redisMulti.hincrby(
+        'username:' + username, 
+        'loses', 1,
+    );
+
+    redisMulti.del(
+        'session:' + username
+    );
+
+    try{
+        const execResult = await redisMulti.execAsync();
+        if(execResult === null){
+            console.log('transaction error');
+            return;
+        }
+    }
+    catch(err){
+        console.log(err);
     }
 }
 
@@ -240,6 +266,8 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
 
     //Create game session (if no blackjack)
     if(!hasBlackjack){
+        const timeoutIndex = await setTimeout(loseByTimeout, 10000, data.username);
+        sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         redisMulti.hmset(
             'session:' + data.username, 
             'lastActionTime', Date.now(), 
@@ -283,30 +311,40 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     catch(err){
         console.log(err);
     }
-    console.log('userHasSession: ' + userHasSession);
     
     if(userHasSession !== 1){
         console.log('user is not playing!');
         return;
     }
 
+    clearTimeout(sessionTimeoutIndexMap.get(data.username));
     try{ await redisClient.watchAsync('session:' + data.username); }
     catch(err){ console.log(err); }
 
     //get current hand
-    let cardsDataFromSession: Array<string> = [];
+    let dataFromSession: Array<string> = [];
     try{
-        cardsDataFromSession = await Promise.all([
+        dataFromSession = await Promise.all([
             redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
             redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+            redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
         ]); 
     }
     catch(err){
         console.log(err);
     }
-    const dealerHand = cardsDataFromSession[0];
+
+    //Check timeout
+    const lastActionTimeString = dataFromSession[2];
+    const lastActionTime = Number(lastActionTimeString);
+    if(Date.now() - lastActionTime >= 10000){
+        loseByTimeout(data.username);
+        return;
+    }
+
+    const dealerHand = dataFromSession[0];
     const dealerHandArray: Array<string> = JSON.parse(dealerHand);
-    const playerHand = cardsDataFromSession[1];
+    const playerHand = dataFromSession[1];
     const playerHandArray: Array<string> = JSON.parse(playerHand);
     console.log(playerHandArray);
 
@@ -323,7 +361,10 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     //Save to database
     try{
         const execResult = await redisClient.multi()
-            .hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray))
+            .hmset('session:' + data.username, 
+                'player-hand', JSON.stringify(playerHandArray),
+                'lastActionTime', Date.now()
+                )
             .execAsync();
             if(execResult === null){
                 console.log('transaction failed');
@@ -357,7 +398,11 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
             console.log(err);
         }
     }
-
+    else{
+        const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username);
+        sessionTimeoutIndexMap.set(data.username, timeoutIndex);
+    }
+    
     //Response
     const sc_hit = {
         "event" : "sc_hit",
@@ -387,24 +432,35 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
         console.log('user is not playing!');
         return;
     }
-
+    
+    clearTimeout(sessionTimeoutIndexMap.get(data.username));
     try{ await redisClient.watchAsync('session:' + data.username); }
     catch(err){ console.log(err); }
 
     //get current hand
-    let cardsDataFromSession: Array<string> = [];
+    let dataFromSession: Array<string> = [];
     try{
-        cardsDataFromSession = await Promise.all([
+        dataFromSession = await Promise.all([
             redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
             redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+            redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
         ]); 
     }
     catch(err){
         console.log(err);
     }
-    const dealerHand = cardsDataFromSession[0];
+
+    //Check timeout
+    const lastActionTimeString = dataFromSession[2];
+    const lastActionTime = Number(lastActionTimeString);
+    if(Date.now() - lastActionTime >= 10000){
+        loseByTimeout(data.username);
+        return;
+    }
+
+    const dealerHand = dataFromSession[0];
     const dealerHandArray: Array<string> = JSON.parse(dealerHand);
-    const playerHand = cardsDataFromSession[1];
+    const playerHand = dataFromSession[1];
     const playerHandArray: Array<string> = JSON.parse(playerHand);
     console.log(playerHandArray);
 
@@ -461,7 +517,7 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
 const cs_leaderboard = function(ws: WebSocket, data: JSON){
     console.log('cs_leaderboard!');
 
-
+    
 }
 
 //Bindings
@@ -486,7 +542,7 @@ setInterval(() => {
         ws.isAlive = false;
         ws.ping();
     });
-}, 1000);
+}, 10000);
 
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address() as net.AddressInfo;

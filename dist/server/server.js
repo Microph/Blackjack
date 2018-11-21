@@ -81,6 +81,7 @@ const fullDeck = new Set([
     'QS', 'QH', 'QD', 'QC',
     'KS', 'KH', 'KD', 'KC',
 ]);
+const sessionTimeoutIndexMap = new Map();
 //Game functions
 const drawACard = function (deckSet) {
     const deckArray = Array.from(deckSet);
@@ -130,7 +131,7 @@ const startDealerPlayAndGetGameResult = function (playerHand, dealerHand) {
         dealerHand.push(drawACard(deckSet));
     }
     const playerScore = checkHandValue(playerHand);
-    if (playerScore > dealerScore) {
+    if (playerScore <= 21 && (dealerScore > 21 || playerScore > dealerScore)) {
         console.log('player WIN');
         return 1;
     }
@@ -142,6 +143,24 @@ const startDealerPlayAndGetGameResult = function (playerHand, dealerHand) {
         console.log('player LOSE');
         return -1;
     }
+};
+const loseByTimeout = function (username) {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log('---timeout!---');
+        const redisMulti = redisClient.multi();
+        redisMulti.hincrby('username:' + username, 'loses', 1);
+        redisMulti.del('session:' + username);
+        try {
+            const execResult = yield redisMulti.execAsync();
+            if (execResult === null) {
+                console.log('transaction error');
+                return;
+            }
+        }
+        catch (err) {
+            console.log(err);
+        }
+    });
 };
 //APIs
 const cs_startGame = function (ws, data) {
@@ -211,6 +230,8 @@ const cs_startGame = function (ws, data) {
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
+            const timeoutIndex = yield setTimeout(loseByTimeout, 10000, data.username);
+            sessionTimeoutIndexMap.set(data.username, timeoutIndex);
             redisMulti.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify([cardForDealer]), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
         }
         try {
@@ -247,11 +268,11 @@ const cs_hit = function (ws, data) {
         catch (err) {
             console.log(err);
         }
-        console.log('userHasSession: ' + userHasSession);
         if (userHasSession !== 1) {
             console.log('user is not playing!');
             return;
         }
+        clearTimeout(sessionTimeoutIndexMap.get(data.username));
         try {
             yield redisClient.watchAsync('session:' + data.username);
         }
@@ -259,19 +280,27 @@ const cs_hit = function (ws, data) {
             console.log(err);
         }
         //get current hand
-        let cardsDataFromSession = [];
+        let dataFromSession = [];
         try {
-            cardsDataFromSession = yield Promise.all([
+            dataFromSession = yield Promise.all([
                 redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
                 redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
             ]);
         }
         catch (err) {
             console.log(err);
         }
-        const dealerHand = cardsDataFromSession[0];
+        //Check timeout
+        const lastActionTimeString = dataFromSession[2];
+        const lastActionTime = Number(lastActionTimeString);
+        if (Date.now() - lastActionTime >= 10000) {
+            loseByTimeout(data.username);
+            return;
+        }
+        const dealerHand = dataFromSession[0];
         const dealerHandArray = JSON.parse(dealerHand);
-        const playerHand = cardsDataFromSession[1];
+        const playerHand = dataFromSession[1];
         const playerHandArray = JSON.parse(playerHand);
         console.log(playerHandArray);
         //draw
@@ -286,7 +315,7 @@ const cs_hit = function (ws, data) {
         //Save to database
         try {
             const execResult = yield redisClient.multi()
-                .hset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray))
+                .hmset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray), 'lastActionTime', Date.now())
                 .execAsync();
             if (execResult === null) {
                 console.log('transaction failed');
@@ -312,6 +341,10 @@ const cs_hit = function (ws, data) {
             catch (err) {
                 console.log(err);
             }
+        }
+        else {
+            const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username);
+            sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         }
         //Response
         const sc_hit = {
@@ -341,6 +374,7 @@ const cs_stand = function (ws, data) {
             console.log('user is not playing!');
             return;
         }
+        clearTimeout(sessionTimeoutIndexMap.get(data.username));
         try {
             yield redisClient.watchAsync('session:' + data.username);
         }
@@ -348,19 +382,27 @@ const cs_stand = function (ws, data) {
             console.log(err);
         }
         //get current hand
-        let cardsDataFromSession = [];
+        let dataFromSession = [];
         try {
-            cardsDataFromSession = yield Promise.all([
+            dataFromSession = yield Promise.all([
                 redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
                 redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
             ]);
         }
         catch (err) {
             console.log(err);
         }
-        const dealerHand = cardsDataFromSession[0];
+        //Check timeout
+        const lastActionTimeString = dataFromSession[2];
+        const lastActionTime = Number(lastActionTimeString);
+        if (Date.now() - lastActionTime >= 10000) {
+            loseByTimeout(data.username);
+            return;
+        }
+        const dealerHand = dataFromSession[0];
         const dealerHandArray = JSON.parse(dealerHand);
-        const playerHand = cardsDataFromSession[1];
+        const playerHand = dataFromSession[1];
         const playerHandArray = JSON.parse(playerHand);
         console.log(playerHandArray);
         //Dealer start playing
@@ -418,7 +460,7 @@ setInterval(() => {
         ws.isAlive = false;
         ws.ping();
     });
-}, 1000);
+}, 10000);
 server.listen(process.env.PORT || 8080, () => {
     const { port } = server.address();
     console.log('Server started on port ' + port);
