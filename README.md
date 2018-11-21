@@ -11,7 +11,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 }
 ```
 
-- Start Game<br/>
+### Start Game<br/>
 
 Client -> Server
 ```json
@@ -34,7 +34,7 @@ Server -> Client
   }
 ```
   
-- Hit<br/>
+### Hit<br/>
 
 Client -> Server
 ```json
@@ -57,7 +57,7 @@ Server -> Client
   }
 ```
 
-- Stand<br/>
+### Stand<br/>
 
 Client -> Server
 ```json
@@ -80,7 +80,7 @@ Server -> Client
     }
 ```
  
-- Leaderboard<br/>
+### Leaderboard<br/>
 
 Client -> Server
 ```json
@@ -99,7 +99,7 @@ Server -> Client
       }
     }
 ```
-- Lose By Timeout<br/>
+### Lose By Timeout<br/>
 
 Server -> Client
 ```json
