@@ -2,7 +2,7 @@
 
 Playable at: https://blackjack-by-microph.herokuapp.com/
   
-APIs<br/>
+## APIs<br/>
 Since I use websocket protocol for this project, I create a custom data format for server and client that looks like this
 ```json
 {
@@ -12,6 +12,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
 
 - Start Game<br/>
+
 Client -> Server
 ```json
   {
@@ -34,6 +35,7 @@ Server -> Client
 ```
   
 - Hit<br/>
+
 Client -> Server
 ```json
   {
@@ -56,6 +58,7 @@ Server -> Client
 ```
 
 - Stand<br/>
+
 Client -> Server
 ```json
     {
@@ -78,6 +81,7 @@ Server -> Client
 ```
  
 - Leaderboard<br/>
+
 Client -> Server
 ```json
     {
@@ -96,6 +100,7 @@ Server -> Client
     }
 ```
 - Lose By Timeout<br/>
+
 Server -> Client
 ```json
     {
