@@ -35,6 +35,8 @@
     ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
     let timerIntervalObj = {};
     let COUNTER = 10;
+    $('#hit_button').toggle(false);
+    $('#stand_button').toggle(false);
 
     ws.onmessage = function (dataIn) {
         $('#server-message').text(dataIn.data);
@@ -54,6 +56,8 @@
             $('#username').toggle(false);
             $('#startGame_button').toggle(false);
             $('#leaderboard_button').toggle(false);
+            $('#hit_button').toggle(true);
+            $('#stand_button').toggle(true);
             COUNTER = 10;
             $('#timer').toggle(true);
             $('#timer').text(COUNTER);
@@ -69,6 +73,8 @@
             $('#username').toggle(true);
             $('#startGame_button').toggle(true);
             $('#leaderboard_button').toggle(true);
+            $('#hit_button').toggle(false);
+            $('#stand_button').toggle(false);
             $('#timer').toggle(false);
             clearInterval(timerIntervalObj);
         }
@@ -83,6 +89,8 @@
             $('#username').toggle(true);
             $('#startGame_button').toggle(true);
             $('#leaderboard_button').toggle(true);
+            $('#hit_button').toggle(false);
+            $('#stand_button').toggle(false);
             $('#timer').toggle(false);
             clearInterval(timerIntervalObj);
         }
@@ -95,6 +103,8 @@
         $('#username').toggle(true);
         $('#startGame_button').toggle(true);
         $('#leaderboard_button').toggle(true);
+        $('#hit_button').toggle(false);
+        $('#stand_button').toggle(false);
         $('#timer').toggle(false);
         clearInterval(timerIntervalObj);
     }
