@@ -237,7 +237,7 @@ const cs_startGame = function (ws, data) {
                     redisMulti.hincrby('username:' + data.username, 'wins', 1);
                 }
                 else {
-                    redisMulti.hincrby('username:' + data.username, 'draw', 1);
+                    redisMulti.hincrby('username:' + data.username, 'draws', 1);
                 }
             }
         }
