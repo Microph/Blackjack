@@ -19,7 +19,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const callbacks = {};
-const redisClient = redis.createClient(6379, "127.0.0.1");
+const redisClient = redis.createClient(process.env.REDIS_URL);
 redisClient.on('connect', function () {
     console.log('Redis client connected');
 });
@@ -40,7 +40,7 @@ wss.on('connection', (ws) => {
         }
         processEvent(ws, jsonReqObj.event, jsonReqObj.data);
     });
-    ws.send('BLACKJACK ONLINE');
+    ws.send('Enter your name and press start!');
 });
 const processEvent = function (ws, eventName, data) {
     let registeredCallbacks = callbacks[eventName];
