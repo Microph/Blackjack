@@ -17,7 +17,7 @@
             <h2 align="center">BLACKJACK</h2>
             <h2 align="center" id="timer" hidden></h2>
             <h4><div id="server-message"></div></h4>
-            <div class="form-group">
+            <div class="form-group" id="nameInput">
                 <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
             </div>
             <button id="startGame_button" class="btn btn-lg btn-primary btn-block">Start Game</button>
@@ -51,10 +51,11 @@
 
     function handleStartGame(data){
         if(data.gameStatus === "PLAYING"){
+            $('#nameInput').toggle(false);
             $('#startGame_button').toggle(false);
             $('#leaderboard_button').toggle(false);
-            $('#timer').toggle(true);
             COUNTER = 10;
+            $('#timer').toggle(true);
             $('#timer').text(COUNTER);
             timerIntervalObj = setInterval(function(){
                 if(COUNTER > 0) COUNTER --;
@@ -65,6 +66,7 @@
 
     function handleHit(data){
         if(data.gameStatus !== "PLAYING"){
+            $('#nameInput').toggle(true);
             $('#startGame_button').toggle(true);
             $('#leaderboard_button').toggle(true);
             $('#timer').toggle(false);
@@ -78,6 +80,7 @@
 
     function handleStand(data){
         if(data.gameStatus !== "PLAYING"){
+            $('#nameInput').toggle(true);
             $('#startGame_button').toggle(true);
             $('#leaderboard_button').toggle(true);
             $('#timer').toggle(false);
@@ -89,6 +92,7 @@
     }
 
     function handleLoseByTimeout(data){
+        $('#nameInput').toggle(true);
         $('#startGame_button').toggle(true);
         $('#leaderboard_button').toggle(true);
         $('#timer').toggle(false);
