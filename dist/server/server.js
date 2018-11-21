@@ -51,6 +51,8 @@ const isAcceptableUserName = function (name) {
     return true;
 };
 //Game data
+const TURN_TIME_LIMIT = 10000;
+const sessionTimeoutIndexMap = new Map();
 const cardValue = new Map([
     ['AS', 11], ['AH', 11], ['AD', 11], ['AC', 11],
     ['2S', 2], ['2H', 2], ['2D', 2], ['2C', 2],
@@ -81,7 +83,6 @@ const fullDeck = new Set([
     'QS', 'QH', 'QD', 'QC',
     'KS', 'KH', 'KD', 'KC',
 ]);
-const sessionTimeoutIndexMap = new Map();
 //Game functions
 const drawACard = function (deckSet) {
     const deckArray = Array.from(deckSet);
@@ -163,7 +164,9 @@ const loseByTimeout = function (username, ws) {
         //Response
         const sc_loseByTimeout = {
             "event": "sc_loseByTimeout",
-            "data": {}
+            "data": {
+                "gameStatus": "LOSE"
+            }
         };
         ws.send(JSON.stringify(sc_loseByTimeout));
     });
@@ -202,15 +205,18 @@ const cs_startGame = function (ws, data) {
         let win = 0;
         let draw = 0;
         let playResult = 0;
+        let gameStatus = "PLAYING";
         const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
         if (initialHandValue == 21) {
             hasBlackjack = true;
             playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], [cardForDealer]);
             if (playResult === 1) {
                 win = 1;
+                gameStatus = "WIN";
             }
             else if (playResult === 0) {
                 draw = 1;
+                gameStatus = "DRAW";
             }
             else {
                 console.log("How can you lose when you get blackjack?? (shouldn't be here)");
@@ -236,9 +242,9 @@ const cs_startGame = function (ws, data) {
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            const timeoutIndex = yield setTimeout(loseByTimeout, 10000, data.username, ws);
+            const timeoutIndex = yield setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
             sessionTimeoutIndexMap.set(data.username, timeoutIndex);
-            redisMulti.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify([cardForDealer]), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
+            redisMulti.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealerHand', JSON.stringify([cardForDealer]), 'playerHand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
         }
         try {
             const execResult = yield redisMulti.execAsync();
@@ -254,8 +260,9 @@ const cs_startGame = function (ws, data) {
         const sc_startGame = {
             "event": "sc_startGame",
             "data": {
-                "dealer-hand": [cardForDealer],
-                "player-hand": [cardForPlayer1st, cardForPlayer2nd]
+                "dealerHand": [cardForDealer],
+                "playerHand": [cardForPlayer1st, cardForPlayer2nd],
+                "gameStatus": gameStatus
             }
         };
         ws.send(JSON.stringify(sc_startGame));
@@ -289,8 +296,8 @@ const cs_hit = function (ws, data) {
         let dataFromSession = [];
         try {
             dataFromSession = yield Promise.all([
-                redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
-                redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'dealerHand'),
+                redisClient.hgetAsync('session:' + data.username, 'playerHand'),
                 redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
             ]);
         }
@@ -300,7 +307,7 @@ const cs_hit = function (ws, data) {
         //Check timeout
         const lastActionTimeString = dataFromSession[2];
         const lastActionTime = Number(lastActionTimeString);
-        if (Date.now() - lastActionTime >= 10000) {
+        if (Date.now() - lastActionTime >= TURN_TIME_LIMIT) {
             loseByTimeout(data.username, ws);
             return;
         }
@@ -310,6 +317,7 @@ const cs_hit = function (ws, data) {
         const playerHandArray = JSON.parse(playerHand);
         console.log(playerHandArray);
         //draw
+        let gameStatus = "PLAYING";
         const deckSet = new Set(fullDeck);
         dealerHandArray.forEach(card => {
             deckSet.delete(card);
@@ -321,7 +329,7 @@ const cs_hit = function (ws, data) {
         //Save to database
         try {
             const execResult = yield redisClient.multi()
-                .hmset('session:' + data.username, 'player-hand', JSON.stringify(playerHandArray), 'lastActionTime', Date.now())
+                .hmset('session:' + data.username, 'playerHand', JSON.stringify(playerHandArray), 'lastActionTime', Date.now())
                 .execAsync();
             if (execResult === null) {
                 console.log('transaction failed');
@@ -334,6 +342,7 @@ const cs_hit = function (ws, data) {
         //Check bust
         const playerHandValue = checkHandValue(playerHandArray);
         if (playerHandValue > 21) {
+            gameStatus = "LOSE";
             const redisMulti = redisClient.multi();
             redisMulti.hincrby('username:' + data.username, 'loses', 1);
             redisMulti.del('session:' + data.username);
@@ -349,15 +358,16 @@ const cs_hit = function (ws, data) {
             }
         }
         else {
-            const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username, ws);
+            const timeoutIndex = setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
             sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         }
         //Response
         const sc_hit = {
             "event": "sc_hit",
             "data": {
-                "dealer-hand": dealerHandArray,
-                "player-hand": playerHandArray
+                "dealerHand": dealerHandArray,
+                "playerHand": playerHandArray,
+                "gameStatus": gameStatus
             }
         };
         ws.send(JSON.stringify(sc_hit));
@@ -391,8 +401,8 @@ const cs_stand = function (ws, data) {
         let dataFromSession = [];
         try {
             dataFromSession = yield Promise.all([
-                redisClient.hgetAsync('session:' + data.username, 'dealer-hand'),
-                redisClient.hgetAsync('session:' + data.username, 'player-hand'),
+                redisClient.hgetAsync('session:' + data.username, 'dealerHand'),
+                redisClient.hgetAsync('session:' + data.username, 'playerHand'),
                 redisClient.hgetAsync('session:' + data.username, 'lastActionTime')
             ]);
         }
@@ -402,7 +412,7 @@ const cs_stand = function (ws, data) {
         //Check timeout
         const lastActionTimeString = dataFromSession[2];
         const lastActionTime = Number(lastActionTimeString);
-        if (Date.now() - lastActionTime >= 10000) {
+        if (Date.now() - lastActionTime >= TURN_TIME_LIMIT) {
             loseByTimeout(data.username, ws);
             return;
         }
@@ -414,14 +424,18 @@ const cs_stand = function (ws, data) {
         //Dealer start playing
         let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
         //Update player status in db
+        let gameStatus = "";
         const redisMulti = redisClient.multi();
         if (playResult === 1) {
+            gameStatus = "WIN";
             redisMulti.hincrby('username:' + data.username, 'wins', 1);
         }
         else if (playResult === 0) {
+            gameStatus = "DRAW";
             redisMulti.hincrby('username:' + data.username, 'draws', 1);
         }
         else {
+            gameStatus = "LOSE";
             redisMulti.hincrby('username:' + data.username, 'loses', 1);
         }
         redisMulti.del('session:' + data.username);
@@ -439,8 +453,9 @@ const cs_stand = function (ws, data) {
         const sc_stand = {
             "event": "sc_stand",
             "data": {
-                "dealer-hand": dealerHandArray,
-                "player-hand": playerHandArray
+                "dealerHand": dealerHandArray,
+                "playerHand": playerHandArray,
+                "gameStatus": gameStatus
             }
         };
         ws.send(JSON.stringify(sc_stand));
