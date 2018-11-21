@@ -101,7 +101,9 @@ Server -> Client
 ```
 ### Lose By Timeout<br/>
 
-Server -> Client
+Server -> Client<br/>
+
+*Send from server automatically when time limit is reached
 ```json
     {
       "event" : "sc_loseByTimeout",
