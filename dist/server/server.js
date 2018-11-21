@@ -19,7 +19,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const callbacks = {};
-const redisClient = redis.createClient(process.env.REDIS_URL);
+const redisClient = process.env.REDIS_URL ? redis.createClient(process.env.REDIS_URL)
+    : redis.createClient(6379, '127.0.0.1');
 redisClient.on('connect', function () {
     console.log('Redis client connected');
 });
@@ -471,7 +472,41 @@ const cs_stand = function (ws, data) {
     });
 };
 const cs_leaderboard = function (ws, data) {
-    console.log('cs_leaderboard!');
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log('cs_leaderboard!');
+        let usernames = [];
+        try {
+            usernames = yield redisClient.keysAsync('username:*');
+        }
+        catch (err) {
+            console.log(err);
+        }
+        let leaderBoardDetail = [];
+        try {
+            yield Promise.all(usernames.map((name) => __awaiter(this, void 0, void 0, function* () {
+                const userDetailFromDB = yield redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
+                leaderBoardDetail.push({
+                    "username": name,
+                    "wins": userDetailFromDB[0],
+                    "draws": userDetailFromDB[1],
+                    "loses": userDetailFromDB[2],
+                });
+            })));
+        }
+        catch (err) {
+            console.log('operation failed');
+            return;
+        }
+        leaderBoardDetail.sort(function (a, b) { return (2 * b.wins + b.draws - b.loses) - (2 * a.wins + a.draws - a.loses); });
+        //Response
+        const sc_leaderboard = {
+            "event": "sc_leaderboard",
+            "data": {
+                "leaderboard": leaderBoardDetail
+            }
+        };
+        ws.send(JSON.stringify(sc_leaderboard));
+    });
 };
 //Bindings
 const bind = function (eventName, callback) {

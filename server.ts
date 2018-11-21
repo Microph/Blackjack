@@ -12,7 +12,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const callbacks: {[key: string]: Array<Function>} = {};
-const redisClient = redis.createClient(process.env.REDIS_URL);
+const redisClient = process.env.REDIS_URL? redis.createClient(process.env.REDIS_URL)
+                                            : redis.createClient(6379, '127.0.0.1');
 
 redisClient.on('connect', function() {
     console.log('Redis client connected');
@@ -543,10 +544,43 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     ws.send(JSON.stringify(sc_stand));
 }
 
-const cs_leaderboard = function(ws: WebSocket, data: JSON){
+const cs_leaderboard = async function(ws: WebSocket, data: JSON){
     console.log('cs_leaderboard!');
 
-    
+    let usernames :Array<string> = [];
+    try{ 
+        usernames = await redisClient.keysAsync('username:*'); 
+    }
+    catch(err){
+        console.log(err);
+    }   
+
+    let leaderBoardDetail: Array<object> = [];
+    try{ 
+        await Promise.all(usernames.map(async (name) => {
+            const userDetailFromDB = await redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
+            leaderBoardDetail.push({
+                "username": name,
+                "wins": userDetailFromDB[0],
+                "draws": userDetailFromDB[1],
+                "loses": userDetailFromDB[2],
+            });
+        }));
+    }
+    catch(err){
+        console.log('operation failed');
+        return;
+    }
+
+    leaderBoardDetail.sort(function(a, b){return (2*b.wins + b.draws - b.loses) - (2*a.wins + a.draws - a.loses)});
+    //Response
+    const sc_leaderboard = {
+        "event" : "sc_leaderboard",
+        "data" : {
+            "leaderboard" : leaderBoardDetail
+        }
+    };
+    ws.send(JSON.stringify(sc_leaderboard));
 }
 
 //Bindings
