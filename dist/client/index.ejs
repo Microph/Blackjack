@@ -32,7 +32,7 @@
 </html>
 
 <script>
-    ws = new WebSocket(`ws://localhost:8080`);
+    ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
 
     ws.onmessage = function (event) {
         $('#server-message').text(event.data);
