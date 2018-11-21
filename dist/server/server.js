@@ -144,9 +144,9 @@ const startDealerPlayAndGetGameResult = function (playerHand, dealerHand) {
         return -1;
     }
 };
-const loseByTimeout = function (username) {
+const loseByTimeout = function (username, ws) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('---timeout!---');
+        console.log('\n---timeout!---');
         const redisMulti = redisClient.multi();
         redisMulti.hincrby('username:' + username, 'loses', 1);
         redisMulti.del('session:' + username);
@@ -160,6 +160,12 @@ const loseByTimeout = function (username) {
         catch (err) {
             console.log(err);
         }
+        //Response
+        const sc_loseByTimeout = {
+            "event": "sc_loseByTimeout",
+            "data": {}
+        };
+        ws.send(JSON.stringify(sc_loseByTimeout));
     });
 };
 //APIs
@@ -230,7 +236,7 @@ const cs_startGame = function (ws, data) {
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            const timeoutIndex = yield setTimeout(loseByTimeout, 10000, data.username);
+            const timeoutIndex = yield setTimeout(loseByTimeout, 10000, data.username, ws);
             sessionTimeoutIndexMap.set(data.username, timeoutIndex);
             redisMulti.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealer-hand', JSON.stringify([cardForDealer]), 'player-hand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
         }
@@ -295,7 +301,7 @@ const cs_hit = function (ws, data) {
         const lastActionTimeString = dataFromSession[2];
         const lastActionTime = Number(lastActionTimeString);
         if (Date.now() - lastActionTime >= 10000) {
-            loseByTimeout(data.username);
+            loseByTimeout(data.username, ws);
             return;
         }
         const dealerHand = dataFromSession[0];
@@ -343,7 +349,7 @@ const cs_hit = function (ws, data) {
             }
         }
         else {
-            const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username);
+            const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username, ws);
             sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         }
         //Response
@@ -397,7 +403,7 @@ const cs_stand = function (ws, data) {
         const lastActionTimeString = dataFromSession[2];
         const lastActionTime = Number(lastActionTimeString);
         if (Date.now() - lastActionTime >= 10000) {
-            loseByTimeout(data.username);
+            loseByTimeout(data.username, ws);
             return;
         }
         const dealerHand = dataFromSession[0];

@@ -158,8 +158,8 @@ const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, deal
     }
 }
 
-const loseByTimeout = async function(username: string){
-    console.log('---timeout!---');
+const loseByTimeout = async function(username: string, ws: WebSocket){
+    console.log('\n---timeout!---');
     const redisMulti = redisClient.multi();
     redisMulti.hincrby(
         'username:' + username, 
@@ -180,6 +180,13 @@ const loseByTimeout = async function(username: string){
     catch(err){
         console.log(err);
     }
+
+    //Response
+    const sc_loseByTimeout = {
+        "event" : "sc_loseByTimeout",
+        "data" : {}
+    };
+    ws.send(JSON.stringify(sc_loseByTimeout));
 }
 
 //APIs
@@ -266,7 +273,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
 
     //Create game session (if no blackjack)
     if(!hasBlackjack){
-        const timeoutIndex = await setTimeout(loseByTimeout, 10000, data.username);
+        const timeoutIndex = await setTimeout(loseByTimeout, 10000, data.username, ws);
         sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         redisMulti.hmset(
             'session:' + data.username, 
@@ -338,7 +345,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
     const lastActionTimeString = dataFromSession[2];
     const lastActionTime = Number(lastActionTimeString);
     if(Date.now() - lastActionTime >= 10000){
-        loseByTimeout(data.username);
+        loseByTimeout(data.username, ws);
         return;
     }
 
@@ -399,7 +406,7 @@ const cs_hit = async function(ws: WebSocket, data: JSON){
         }
     }
     else{
-        const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username);
+        const timeoutIndex = setTimeout(loseByTimeout, 10000, data.username, ws);
         sessionTimeoutIndexMap.set(data.username, timeoutIndex);
     }
     
@@ -454,7 +461,7 @@ const cs_stand = async function(ws: WebSocket, data: JSON){
     const lastActionTimeString = dataFromSession[2];
     const lastActionTime = Number(lastActionTimeString);
     if(Date.now() - lastActionTime >= 10000){
-        loseByTimeout(data.username);
+        loseByTimeout(data.username, ws);
         return;
     }
 
