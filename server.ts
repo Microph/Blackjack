@@ -221,6 +221,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     const cardForPlayer1st = drawACard(deckSet);
     const cardForPlayer2nd = drawACard(deckSet);
     const cardForDealer = drawACard(deckSet);
+    const cardForDealerArray = new Array<string>(cardForDealer);
 
     //Check Blackjack condition
     let hasBlackjack = false;
@@ -231,7 +232,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
     if(initialHandValue == 21){
         hasBlackjack = true;
-        playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], [cardForDealer]);
+        playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealerArray);
         if(playResult === 1){
             win = 1;
             gameStatus = "WIN";
@@ -282,7 +283,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
         redisMulti.hmset(
             'session:' + data.username, 
             'lastActionTime', Date.now(), 
-            'dealerHand', JSON.stringify([cardForDealer]), 
+            'dealerHand', JSON.stringify(cardForDealerArray), 
             'playerHand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd])
         );
     }
@@ -302,7 +303,7 @@ const cs_startGame = async function(ws: WebSocket, data: JSON){
     const sc_startGame = {
         "event" : "sc_startGame",
         "data" : {
-            "dealerHand" : [cardForDealer],
+            "dealerHand" : cardForDealerArray,
             "playerHand" : [cardForPlayer1st, cardForPlayer2nd],
             "gameStatus" : gameStatus
         }
