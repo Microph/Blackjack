@@ -12,7 +12,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
 
 - Start Game<br/>
-  Client  -> Server
+Client -> Server
 ```json
   {
     "event" : "cs_startGame",
@@ -21,7 +21,7 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
   }
 ```
-  Server -> Client
+Server -> Client
 ```json
   {
     "event" : "sc_startGame",
@@ -34,7 +34,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
   
 - Hit<br/>
-  Client  -> Server
+Client -> Server
 ```json
   {
     "event" : "cs_hit",
@@ -43,7 +43,7 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
   }
 ```
-  Server -> Client
+Server -> Client
 ```json
   {
     "event" : "sc_hit",
@@ -56,8 +56,8 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
 
 - Stand<br/>
-  Client  -> Server
-  ```json
+Client -> Server
+```json
     {
       "event" : "cs_stand",
       "data" : {
@@ -65,7 +65,7 @@ Since I use websocket protocol for this project, I create a custom data format f
       }
     }
 ``` 
-  Server -> Client
+Server -> Client
 ```json
     {
       "event" : "sc_stand",
@@ -78,7 +78,7 @@ Since I use websocket protocol for this project, I create a custom data format f
 ```
  
 - Leaderboard<br/>
-  Client  -> Server
+Client -> Server
 ```json
     {
       "event" : "cs_leaderboard",
@@ -86,7 +86,7 @@ Since I use websocket protocol for this project, I create a custom data format f
       }
     }
 ```
-  Server -> Client
+Server -> Client
 ```json
     {
       "event" : "sc_leaderboard",
@@ -96,7 +96,7 @@ Since I use websocket protocol for this project, I create a custom data format f
     }
 ```
 - Lose By Timeout<br/>
-  Server -> Client
+Server -> Client
 ```json
     {
       "event" : "sc_loseByTimeout",
