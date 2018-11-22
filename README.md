@@ -53,11 +53,11 @@ Server -> Client
 ```json
   {
     "event" : "sc_hit",
-      "data" : {
-        "dealerHand" : Array<string>,
-        "playerHand" : Array<string>,
-        "gameStatus" : String
-      }
+    "data" : {
+      "dealerHand" : Array<string>,
+      "playerHand" : Array<string>,
+      "gameStatus" : String
+    }
   }
 ```
 
@@ -76,11 +76,11 @@ Server -> Client
 ```json
     {
       "event" : "sc_stand",
-        "data" : {
-          "dealerHand" : Array<string>,
-          "playerHand" : Array<string>,
-          "gameStatus" : String
-        }
+      "data" : {
+        "dealerHand" : Array<string>,
+        "playerHand" : Array<string>,
+        "gameStatus" : String
+      }
     }
 ```
  
