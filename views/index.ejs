@@ -32,7 +32,7 @@
 </html>
 
 <script>
-    ws = new WebSocket(location.origin.replace(/^http/, 'wss'));
+    ws = new WebSocket("ws://" + location.host);
     let timerIntervalObj = {};
     let COUNTER = 10;
     $('#hit_button').toggle(false);
@@ -40,7 +40,13 @@
 
     ws.onmessage = function (dataIn) {
         $('#server-message').text(dataIn.data);
-        let jsonData = JSON.parse(dataIn.data);
+        let jsonData ={};
+        try{
+            jsonData = JSON.parse(dataIn.data);
+        }
+        catch(err){
+            return;
+        }
         switch(jsonData.event){
             case 'sc_startGame' : handleStartGame(jsonData.data); break;
             case 'sc_hit' : handleHit(jsonData.data); break;
