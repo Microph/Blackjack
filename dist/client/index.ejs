@@ -32,7 +32,7 @@
 </html>
 
 <script>
-    ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+    ws = new WebSocket(location.origin.replace(/^http/, 'wss'));
     let timerIntervalObj = {};
     let COUNTER = 10;
     $('#hit_button').toggle(false);
