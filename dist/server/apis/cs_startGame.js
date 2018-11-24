@@ -65,7 +65,7 @@ function cs_startGame(ws, data, redisClient) {
         const redisMulti = redisClient.multi();
         if (userHasAccount !== 1) {
             //console.log('new player start!');
-            redisMulti.hmset('username:' + data.username, 'wins', win, 'loses', 0, 'draws', draw);
+            redisMulti.hmset('username:' + data.username, 'wins', win, 'losses', 0, 'draws', draw);
         }
         else {
             //console.log('already have account! start playing');

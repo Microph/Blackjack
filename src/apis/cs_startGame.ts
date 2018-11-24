@@ -64,7 +64,7 @@ export async function cs_startGame (ws: WebSocket, data: JSON, redisClient: Redi
       redisMulti.hmset(
           'username:' + data.username,
           'wins', win, 
-          'loses', 0, 
+          'losses', 0, 
           'draws', draw
       ); 
   }

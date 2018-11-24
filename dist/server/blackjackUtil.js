@@ -117,7 +117,7 @@ exports.loseByTimeout = function (username, ws, redisClient) {
     return __awaiter(this, void 0, void 0, function* () {
         //console.log('\n---timeout!---');
         const redisMulti = redisClient.multi();
-        redisMulti.hincrby('username:' + username, 'loses', 1);
+        redisMulti.hincrby('username:' + username, 'losses', 1);
         redisMulti.del('session:' + username);
         try {
             const execResult = yield redisMulti.execAsync();

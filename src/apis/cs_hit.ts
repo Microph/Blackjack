@@ -88,7 +88,7 @@ export async function cs_hit (ws: WebSocket, data: JSON, redisClient: RedisClien
       const redisMulti = redisClient.multi();
       redisMulti.hincrby(
           'username:' + data.username, 
-          'loses', 1,
+          'losses', 1,
       );
       redisMulti.del(
           'session:' + data.username

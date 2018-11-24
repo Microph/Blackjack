@@ -77,7 +77,7 @@ export async function cs_stand (ws: WebSocket, data: JSON, redisClient: RedisCli
       gameStatus = "LOSE";
       redisMulti.hincrby(
           'username:' + data.username, 
-          'loses', 1,
+          'losses', 1,
       );
   }
 

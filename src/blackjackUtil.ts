@@ -121,7 +121,7 @@ export const loseByTimeout = async function(username: string, ws: WebSocket, red
   const redisMulti = redisClient.multi();
   redisMulti.hincrby(
       'username:' + username, 
-      'loses', 1,
+      'losses', 1,
   );
 
   redisMulti.del(

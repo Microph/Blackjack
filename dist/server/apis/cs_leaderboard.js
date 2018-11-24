@@ -21,12 +21,12 @@ function cs_leaderboard(ws, data, redisClient) {
         let leaderBoardDetail = [];
         try {
             yield Promise.all(usernames.map((name) => __awaiter(this, void 0, void 0, function* () {
-                const userDetailFromDB = yield redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
+                const userDetailFromDB = yield redisClient.hmgetAsync(name, 'wins', 'draws', 'losses');
                 leaderBoardDetail.push({
                     "username": name.substring(9, name.length),
                     "wins": userDetailFromDB[0],
                     "draws": userDetailFromDB[1],
-                    "loses": userDetailFromDB[2],
+                    "losses": userDetailFromDB[2],
                 });
             })));
         }
@@ -34,7 +34,7 @@ function cs_leaderboard(ws, data, redisClient) {
             //console.log('operation failed');
             return;
         }
-        leaderBoardDetail.sort(function (a, b) { return (2 * b.wins + b.draws - b.loses) - (2 * a.wins + a.draws - a.loses); });
+        leaderBoardDetail.sort(function (a, b) { return (2 * b.wins + b.draws - b.losses) - (2 * a.wins + a.draws - a.losses); });
         //Response
         const sc_leaderboard = {
             "event": "sc_leaderboard",

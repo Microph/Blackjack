@@ -72,7 +72,7 @@ function cs_stand(ws, data, redisClient) {
         }
         else {
             gameStatus = "LOSE";
-            redisMulti.hincrby('username:' + data.username, 'loses', 1);
+            redisMulti.hincrby('username:' + data.username, 'losses', 1);
         }
         redisMulti.del('session:' + data.username);
         try {

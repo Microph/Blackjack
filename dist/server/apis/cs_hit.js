@@ -85,7 +85,7 @@ function cs_hit(ws, data, redisClient) {
         if (playerHandValue > 21) {
             gameStatus = "LOSE";
             const redisMulti = redisClient.multi();
-            redisMulti.hincrby('username:' + data.username, 'loses', 1);
+            redisMulti.hincrby('username:' + data.username, 'losses', 1);
             redisMulti.del('session:' + data.username);
             try {
                 const execResult = yield redisMulti.execAsync();

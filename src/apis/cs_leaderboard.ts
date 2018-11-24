@@ -14,12 +14,12 @@ export async function cs_leaderboard (ws: WebSocket, data: JSON, redisClient: Re
   let leaderBoardDetail: Array<object> = [];
   try{ 
       await Promise.all(usernames.map(async (name) => {
-          const userDetailFromDB = await redisClient.hmgetAsync(name, 'wins', 'draws', 'loses');
+          const userDetailFromDB = await redisClient.hmgetAsync(name, 'wins', 'draws', 'losses');
           leaderBoardDetail.push({
               "username": name.substring(9, name.length),
               "wins": userDetailFromDB[0],
               "draws": userDetailFromDB[1],
-              "loses": userDetailFromDB[2],
+              "losses": userDetailFromDB[2],
           });
       }));
   }
@@ -28,7 +28,7 @@ export async function cs_leaderboard (ws: WebSocket, data: JSON, redisClient: Re
       return;
   }
 
-  leaderBoardDetail.sort(function(a, b){return (2*b.wins + b.draws - b.loses) - (2*a.wins + a.draws - a.loses)});
+  leaderBoardDetail.sort(function(a, b){return (2*b.wins + b.draws - b.losses) - (2*a.wins + a.draws - a.losses)});
   //Response
   const sc_leaderboard = {
       "event" : "sc_leaderboard",
