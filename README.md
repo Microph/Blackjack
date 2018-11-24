@@ -16,8 +16,6 @@ Since I use websocket protocol for this project, I create a custom data format f
 ### Start Game<br/>
 
 Client -> Server<br/>
-
-*Game will start only if the input name is not empty and contains no spaces
 ```json
 {
   "event" : "cs_startGame",
@@ -37,7 +35,10 @@ Server -> Client
   }
 }
 ```
-  
+The game will start only if
+- Input name is not empty and contains no spaces
+- There is no active game session of the username
+
 ### Hit<br/>
 
 Client -> Server
