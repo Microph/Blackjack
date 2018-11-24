@@ -1,5 +1,8 @@
-module.exports = async function(ws: WebSocket, data: JSON){
-  if(!isAcceptableUserName(data.username))
+import { RedisClient } from "redis";
+import * as blackjackUtil from './../blackjackUtil';
+
+export async function cs_startGame (ws: WebSocket, data: JSON, redisClient: RedisClient){
+  if(!blackjackUtil.isAcceptableUserName(data.username))
       return;
 
   //console.log('start game! ' + data.username);
@@ -24,10 +27,10 @@ module.exports = async function(ws: WebSocket, data: JSON){
   }
 
   //Start game session
-  const deckSet = new Set(fullDeck);
-  const cardForPlayer1st = drawACard(deckSet);
-  const cardForPlayer2nd = drawACard(deckSet);
-  const cardForDealer = drawACard(deckSet);
+  const deckSet = new Set(blackjackUtil.fullDeck);
+  const cardForPlayer1st = blackjackUtil.drawACard(deckSet);
+  const cardForPlayer2nd = blackjackUtil.drawACard(deckSet);
+  const cardForDealer = blackjackUtil.drawACard(deckSet);
   const cardForDealerArray = new Array<string>(cardForDealer);
 
   //Check Blackjack condition
@@ -36,10 +39,10 @@ module.exports = async function(ws: WebSocket, data: JSON){
   let draw = 0;
   let playResult = 0;
   let gameStatus = "PLAYING";
-  const initialHandValue = checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
+  const initialHandValue = blackjackUtil.checkHandValue([cardForPlayer1st, cardForPlayer2nd]);
   if(initialHandValue == 21){
       hasBlackjack = true;
-      playResult = startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealerArray);
+      playResult = blackjackUtil.startDealerPlayAndGetGameResult([cardForPlayer1st, cardForPlayer2nd], cardForDealerArray);
       if(playResult === 1){
           win = 1;
           gameStatus = "WIN";
@@ -85,8 +88,8 @@ module.exports = async function(ws: WebSocket, data: JSON){
 
   //Create game session (if no blackjack)
   if(!hasBlackjack){
-      const timeoutIndex = await setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
-      sessionTimeoutIndexMap.set(data.username, timeoutIndex);
+      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+      blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
       redisMulti.hmset(
           'session:' + data.username, 
           'lastActionTime', Date.now(), 

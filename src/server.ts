@@ -48,12 +48,9 @@ const processEvent = function(ws: WebSocket, eventName: string, data: JSON){
         return;
 
     for(let i = 0; i < registeredCallbacks.length; i++){
-        registeredCallbacks[i](ws, data);
+        registeredCallbacks[i](ws, data, redisClient);
     }
 };
-
-//APIs
-
 
 //Bindings
 const bind = function(eventName: string, callback: Function){
@@ -61,12 +58,16 @@ const bind = function(eventName: string, callback: Function){
     callbacks[eventName].push(callback);
 };
 
-import cs_startGame = require('./api/cs_startGame');
+//APIs
+import startGameAPI = require('./apis/cs_startGame');
+import hitAPI = require('./apis/cs_hit');
+import standAPI = require('./apis/cs_stand');
+import leaderboardAPI = require('./apis/cs_leaderboard');
 
-bind('cs_startGame', cs_startGame);
-bind('cs_hit', cs_hit);
-bind('cs_stand', cs_stand);
-bind('cs_leaderboard', cs_leaderboard);
+bind('cs_startGame', startGameAPI.cs_startGame);
+bind('cs_hit', hitAPI.cs_hit);
+bind('cs_stand', standAPI.cs_stand);
+bind('cs_leaderboard', leaderboardAPI.cs_leaderboard);
 
 setInterval(() => {
     wss.clients.forEach((ws: WebSocket) => {

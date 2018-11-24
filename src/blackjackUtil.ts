@@ -1,9 +1,10 @@
 import { RedisClient } from "redis";
+import { isNullOrUndefined } from 'util';
 
 //Game data
-const TURN_TIME_LIMIT : number = 10000;
-const sessionTimeoutIndexMap: Map<string, number> = new Map<string, number>();
-const cardValue : Map<string, number> = new Map<string, number>([
+export const TURN_TIME_LIMIT : number = 10000;
+export const sessionTimeoutIndexMap: Map<string, number> = new Map<string, number>();
+export const cardValue : Map<string, number> = new Map<string, number>([
     ['AS', 11], ['AH', 11], ['AD', 11], ['AC', 11],
     ['2S', 2], ['2H', 2], ['2D', 2], ['2C', 2],
     ['3S', 3], ['3H', 3], ['3D', 3], ['3C', 3],
@@ -18,7 +19,7 @@ const cardValue : Map<string, number> = new Map<string, number>([
     ['QS', 10], ['QH', 10], ['QD', 10], ['QC', 10],
     ['KS', 10], ['KH', 10], ['KD', 10], ['KC', 10],
 ]);
-const fullDeck : Set<string> = new Set<string>([
+export const fullDeck : Set<string> = new Set<string>([
     'AS', 'AH', 'AD', 'AC',
     '2S', '2H', '2D', '2C',
     '3S', '3H', '3D', '3C',
@@ -35,7 +36,7 @@ const fullDeck : Set<string> = new Set<string>([
 ]);
 
 //General utility
-const isAcceptableUserName = function(name: string) : boolean{
+export const isAcceptableUserName = function(name: string) : boolean{
     if(isNullOrUndefined(name))
         return false;
     
@@ -47,14 +48,14 @@ const isAcceptableUserName = function(name: string) : boolean{
 }
 
 //Game utility
-const drawACard = function(deckSet: Set<string>) : string{
+export const drawACard = function(deckSet: Set<string>) : string{
   const deckArray = Array.from(deckSet);
   const drewCard = deckArray[Math.floor(Math.random() * deckArray.length)];
   deckSet.delete(drewCard);
   return drewCard;
 }
 
-const checkHandValue = function(hand: Array<string>) : number{
+export const checkHandValue = function(hand: Array<string>) : number{
   //console.log('\nhand: ' + hand.toString());
   let totalValue = 0;
   let aces = 0;
@@ -84,7 +85,7 @@ const checkHandValue = function(hand: Array<string>) : number{
   return totalValue;
 }
 
-const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, dealerHand: Array<string>) : number{
+export const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, dealerHand: Array<string>) : number{
   const deckSet = new Set(fullDeck);
   deckSet.delete(dealerHand[0]);
   playerHand.forEach(card => {
@@ -115,7 +116,7 @@ const startDealerPlayAndGetGameResult = function(playerHand: Array<string>, deal
   }
 }
 
-const loseByTimeout = async function(username: string, ws: WebSocket, redisClient: RedisClient){
+export const loseByTimeout = async function(username: string, ws: WebSocket, redisClient: RedisClient){
   //console.log('\n---timeout!---');
   const redisMulti = redisClient.multi();
   redisMulti.hincrby(

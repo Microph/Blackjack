@@ -1,4 +1,6 @@
-module.exports = async function(ws: WebSocket, data: JSON){
+import { RedisClient } from "redis";
+
+export async function cs_leaderboard (ws: WebSocket, data: JSON, redisClient: RedisClient){
   //console.log('cs_leaderboard!');
 
   let usernames :Array<string> = [];

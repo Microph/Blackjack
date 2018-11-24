@@ -1,5 +1,8 @@
-module.exports = async function(ws: WebSocket, data: JSON){
-  if(!isAcceptableUserName(data.username))
+import { RedisClient } from "redis";
+import * as blackjackUtil from './../blackjackUtil';
+
+export async function cs_stand (ws: WebSocket, data: JSON, redisClient: RedisClient){
+  if(!blackjackUtil.isAcceptableUserName(data.username))
       return;
 
   //console.log('cs_stand! ' + data.username);
@@ -17,7 +20,7 @@ module.exports = async function(ws: WebSocket, data: JSON){
       return;
   }
   
-  clearTimeout(sessionTimeoutIndexMap.get(data.username));
+  clearTimeout(blackjackUtil.sessionTimeoutIndexMap.get(data.username));
   try{ await redisClient.watchAsync('session:' + data.username); }
   catch(err){ 
       //console.log(err); 
@@ -39,9 +42,9 @@ module.exports = async function(ws: WebSocket, data: JSON){
   //Check timeout
   const lastActionTimeString = dataFromSession[2];
   const lastActionTime = Number(lastActionTimeString);
-  if(Date.now() - lastActionTime >= TURN_TIME_LIMIT){
-      loseByTimeout(data.username, ws);
-      return;
+  if(Date.now() - lastActionTime >= blackjackUtil.TURN_TIME_LIMIT){
+    blackjackUtil.loseByTimeout(data.username, ws, redisClient);
+    return;
   }
 
   const dealerHand = dataFromSession[0];
@@ -51,7 +54,7 @@ module.exports = async function(ws: WebSocket, data: JSON){
   //console.log(playerHandArray);
 
   //Dealer start playing
-  let playResult = startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
+  let playResult = blackjackUtil.startDealerPlayAndGetGameResult(playerHandArray, dealerHandArray);
 
   //Update player status in db
   let gameStatus = "";

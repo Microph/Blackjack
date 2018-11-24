@@ -1,5 +1,8 @@
-module.exports = async function(ws: WebSocket, data: JSON){
-  if(!isAcceptableUserName(data.username))
+import { RedisClient } from "redis";
+import * as blackjackUtil from './../blackjackUtil';
+
+export async function cs_hit (ws: WebSocket, data: JSON, redisClient: RedisClient){
+  if(!blackjackUtil.isAcceptableUserName(data.username))
       return;
 
   //console.log('cs_hit! ' + data.username);
@@ -17,7 +20,7 @@ module.exports = async function(ws: WebSocket, data: JSON){
       return;
   }
 
-  clearTimeout(sessionTimeoutIndexMap.get(data.username));
+  clearTimeout(blackjackUtil.sessionTimeoutIndexMap.get(data.username));
   try{ await redisClient.watchAsync('session:' + data.username); }
   catch(err){ 
       //console.log(err); 
@@ -39,8 +42,8 @@ module.exports = async function(ws: WebSocket, data: JSON){
   //Check timeout
   const lastActionTimeString = dataFromSession[2];
   const lastActionTime = Number(lastActionTimeString);
-  if(Date.now() - lastActionTime >= TURN_TIME_LIMIT){
-      loseByTimeout(data.username, ws);
+  if(Date.now() - lastActionTime >= blackjackUtil.TURN_TIME_LIMIT){
+      blackjackUtil.loseByTimeout(data.username, ws, redisClient);
       return;
   }
 
@@ -52,14 +55,14 @@ module.exports = async function(ws: WebSocket, data: JSON){
 
   //draw
   let gameStatus = "PLAYING";
-  const deckSet = new Set(fullDeck);
+  const deckSet = new Set(blackjackUtil.fullDeck);
   dealerHandArray.forEach(card => {
       deckSet.delete(card);
   });
   playerHandArray.forEach(card => {
       deckSet.delete(card);
   });
-  playerHandArray.push(drawACard(deckSet));
+  playerHandArray.push(blackjackUtil.drawACard(deckSet));
 
   //Save to database
   try{
@@ -79,7 +82,7 @@ module.exports = async function(ws: WebSocket, data: JSON){
   }
 
   //Check bust
-  const playerHandValue = checkHandValue(playerHandArray);
+  const playerHandValue = blackjackUtil.checkHandValue(playerHandArray);
   if(playerHandValue > 21){
       gameStatus = "LOSE";
       const redisMulti = redisClient.multi();
@@ -103,8 +106,8 @@ module.exports = async function(ws: WebSocket, data: JSON){
       }
   }
   else{
-      const timeoutIndex = setTimeout(loseByTimeout, TURN_TIME_LIMIT, data.username, ws);
-      sessionTimeoutIndexMap.set(data.username, timeoutIndex);
+      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+      blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
   }
   
   //Response

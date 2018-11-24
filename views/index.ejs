@@ -16,7 +16,7 @@
             
             <h2 align="center">BLACKJACK</h2>
             <h2 align="center" id="timer" hidden></h2>
-            <h4><div id="server-message"></div></h4>
+            <h4><div id="server-message">connecting to server..</div></h4>
             <div class="form-group">
                 <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
             </div>
@@ -32,7 +32,7 @@
 </html>
 
 <script>
-    ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+    ws = new WebSocket("ws://" + location.host);
     let timerIntervalObj = {};
     let COUNTER = 10;
     $('#hit_button').toggle(false);
@@ -40,7 +40,13 @@
 
     ws.onmessage = function (dataIn) {
         $('#server-message').text(dataIn.data);
-        let jsonData = JSON.parse(dataIn.data);
+        let jsonData ={};
+        try{
+            jsonData = JSON.parse(dataIn.data);
+        }
+        catch(err){
+            return;
+        }
         switch(jsonData.event){
             case 'sc_startGame' : handleStartGame(jsonData.data); break;
             case 'sc_hit' : handleHit(jsonData.data); break;
