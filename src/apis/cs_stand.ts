@@ -101,7 +101,9 @@ export async function cs_stand (ws: WebSocket, data: JSON, redisClient: RedisCli
       "event" : "sc_stand",
       "data" : {
           "dealerHand" : dealerHandArray,
+          "dealerHandValue" : blackjackUtil.checkHandValue(dealerHandArray),
           "playerHand" : playerHandArray,
+          "playerHandValue" : blackjackUtil.checkHandValue(playerHandArray),
           "gameStatus" : gameStatus
       }
   };

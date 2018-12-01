@@ -115,7 +115,9 @@ export async function cs_hit (ws: WebSocket, data: JSON, redisClient: RedisClien
       "event" : "sc_hit",
       "data" : {
           "dealerHand" : dealerHandArray,
+          "dealerHandValue" : blackjackUtil.checkHandValue(dealerHandArray),
           "playerHand" : playerHandArray,
+          "playerHandValue" : playerHandValue,
           "gameStatus" : gameStatus
       }
   };

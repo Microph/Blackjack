@@ -107,7 +107,9 @@ function cs_hit(ws, data, redisClient) {
             "event": "sc_hit",
             "data": {
                 "dealerHand": dealerHandArray,
+                "dealerHandValue": blackjackUtil.checkHandValue(dealerHandArray),
                 "playerHand": playerHandArray,
+                "playerHandValue": playerHandValue,
                 "gameStatus": gameStatus
             }
         };

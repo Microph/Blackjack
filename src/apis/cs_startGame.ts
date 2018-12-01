@@ -114,7 +114,9 @@ export async function cs_startGame (ws: WebSocket, data: JSON, redisClient: Redi
       "event" : "sc_startGame",
       "data" : {
           "dealerHand" : cardForDealerArray,
+          "dealerHandValue" : blackjackUtil.checkHandValue(cardForDealerArray),
           "playerHand" : [cardForPlayer1st, cardForPlayer2nd],
+          "playerHandValue" : blackjackUtil.checkHandValue([cardForPlayer1st, cardForPlayer2nd]),
           "gameStatus" : gameStatus
       }
   };

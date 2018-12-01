@@ -90,7 +90,9 @@ function cs_stand(ws, data, redisClient) {
             "event": "sc_stand",
             "data": {
                 "dealerHand": dealerHandArray,
+                "dealerHandValue": blackjackUtil.checkHandValue(dealerHandArray),
                 "playerHand": playerHandArray,
+                "playerHandValue": blackjackUtil.checkHandValue(playerHandArray),
                 "gameStatus": gameStatus
             }
         };
