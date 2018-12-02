@@ -30,7 +30,9 @@ Server -> Client
   "event" : "sc_startGame",
   "data" : {
     "dealerHand" : Array<string>,
+    "dealerHandValue" : Integer,
     "playerHand" : Array<string>,
+    "playerHandValue" : Integer,
     "gameStatus" : String
   }
 }
@@ -56,7 +58,9 @@ Server -> Client
   "event" : "sc_hit",
   "data" : {
     "dealerHand" : Array<string>,
+    "dealerHandValue" : Integer,
     "playerHand" : Array<string>,
+    "playerHandValue" : Integer,
     "gameStatus" : String
   }
 }
@@ -79,7 +83,9 @@ Server -> Client
   "event" : "sc_stand",
   "data" : {
     "dealerHand" : Array<string>,
+    "dealerHandValue" : Integer,
     "playerHand" : Array<string>,
+    "playerHandValue" : Integer,
     "gameStatus" : String
   }
 }
