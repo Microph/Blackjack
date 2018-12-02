@@ -81,7 +81,6 @@
 
     ws.onmessage = function (dataIn) {
         $('#server-message').text("Enter your name and play!");
-        $('#server-message').text(dataIn.data);
         let jsonData ={};
         try{
             jsonData = JSON.parse(dataIn.data);
