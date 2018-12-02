@@ -1,6 +1,6 @@
 # Blackjack
 
-- Rough UI Playable: https://blackjack-by-microph.herokuapp.com/ (Still display most server messages as JSON)
+- Play Here: https://blackjack-by-microph.herokuapp.com/
 - Server: Node TypeScript
 - Database: Redis
   
