@@ -1,0 +1,10 @@
+img {
+    max-width: 10%;
+    height: auto;
+    padding-bottom: 20px;
+}
+
+#handInfo{ 
+    font-size: 1.5em;
+    font-weight: bold;
+}

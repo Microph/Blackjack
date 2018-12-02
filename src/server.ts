@@ -7,6 +7,7 @@ bluebird.promisifyAll(redis);
 
 import * as WebSocket from 'ws';
 import { isNullOrUndefined } from 'util';
+import path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,6 +15,9 @@ const wss = new WebSocket.Server({ server });
 const callbacks: {[key: string]: Array<Function>} = {};
 const redisClient = process.env.REDIS_URL? redis.createClient(process.env.REDIS_URL)
                                             : redis.createClient(6379, '127.0.0.1');
+
+//Middlewares
+app.use(express.static(path.join(__dirname, 'public')));
 
 redisClient.on('connect', function() {
     //console.log('Redis client connected');
@@ -87,4 +91,5 @@ server.listen(process.env.PORT || 8080, () => {
     //console.log('Server started on port ' + port);
 });
 
+//Routes
 require('./routes')(app);

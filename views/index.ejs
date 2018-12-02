@@ -4,35 +4,72 @@
     <title>Blackjack</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.0/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 </head>
 
 <body>
     <div class="container">
-      <div class="row" id="pwd-container">
-          <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
-            
-            <h2 align="center">BLACKJACK</h2>
-            <h2 align="center" id="timer" hidden></h2>
-            <h4><div id="server-message">connecting to server..</div></h4>
-            <div class="form-group">
-                <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
+        <div class="row" id="pwd-container">
+            <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
+                <h2 align="center"><b>BLACKJACK</b></h2>
+                <h2 align="center" id="gameStatus" hidden>PLAYING</h2>
+                <h2 align="center" id="timer" hidden></h2>
+                <h4><div id="server-message">connecting to server..</div></h4>
             </div>
-            <button id="startGame_button" class="btn btn-lg btn-primary btn-block">Start Game</button>
-            <button id="hit_button" class="btn btn-lg btn-primary btn-block">Hit!</button>
-            <button id="stand_button" class="btn btn-lg btn-primary btn-block">Stand!</button>
-            <button id="leaderboard_button" class="btn btn-lg btn-primary btn-block">Leaderboard</button>
-            
-          </div>
-      </div>
+        </div>
+
+        <div id="gamePlayUI" >
+            <div class="row" id="pwd-container">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfo">
+                    <span>Dealer's Hand: </span>
+                    <span id="dealerHandValue">8</span>
+                </div>
+            </div>
+            <div class="row" id="pwd-container">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="dealerHand">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                </div>
+            </div>
+                    
+            <div class="row" id="pwd-container">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfo">
+                    <span>Player's Hand: </span>
+                    <span id="dealerHandValue">8</span>
+                </div>
+            </div>
+            <div class="row" id="pwd-container">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="playerHand">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                    <img src="/cards/2C.png" alt="2C">
+                </div>
+            </div>
+        </div>
+
+        <div class="row" id="pwd-container">
+            <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
+                <div class="form-group">
+                    <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
+                </div>
+                <button id="startGame_button" class="btn btn-lg btn-primary btn-block">Start Game</button>
+                <button id="hit_button" class="btn btn-lg btn-primary btn-block">Hit!</button>
+                <button id="stand_button" class="btn btn-lg btn-primary btn-block">Stand!</button>
+                <button id="leaderboard_button" class="btn btn-lg btn-primary btn-block">Leaderboard</button>
+            </div>
+        </div>
     </div>
 </body>
 </html>
 
 <script>
-    ws = new WebSocket("wss://" + location.host);
+    ws = new WebSocket("ws://" + location.host);
     let timerIntervalObj = {};
     let COUNTER = 10;
     $('#hit_button').toggle(false);
