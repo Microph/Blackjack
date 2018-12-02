@@ -15,46 +15,50 @@
         <div class="row" id="pwd-container">
             <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
                 <h2 align="center"><b>BLACKJACK</b></h2>
-                <h2 align="center" id="gameStatus" hidden>PLAYING</h2>
-                <h2 align="center" id="timer" hidden></h2>
-                <h4><div id="server-message">connecting to server..</div></h4>
             </div>
         </div>
 
-        <div id="gamePlayUI" >
+        <div id="gameplayUI" style="display:none">
             <div class="row" id="pwd-container">
-                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfo">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfoText">
                     <span>Dealer's Hand: </span>
-                    <span id="dealerHandValue">8</span>
+                    <span id="dealerHandValue"></span>
                 </div>
             </div>
             <div class="row" id="pwd-container">
-                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="dealerHand">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="dealerHandImage">
                 </div>
             </div>
                     
             <div class="row" id="pwd-container">
-                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfo">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="handInfoText">
                     <span>Player's Hand: </span>
-                    <span id="dealerHandValue">8</span>
+                    <span id="playerHandValue"></span>
                 </div>
             </div>
             <div class="row" id="pwd-container">
-                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="playerHand">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
-                    <img src="cards/2C.png" alt="2C">
+                <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4" id="playerHandImage">
                 </div>
             </div>
         </div>
 
+        <div id="leaderboard" style="display:none">
+            <table style="width:100%" id="playerInfo">
+                <tr>
+                    <th>#</th>
+                    <th>Username</th>
+                    <th>Win</th>
+                    <th>Draw</th> 
+                    <th>Loss</th>
+                </tr>
+            </table>
+        </div>
+
         <div class="row" id="pwd-container">
             <div class="col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
+                <h3 align="center" id="gameStatus" hidden>PLAYING</h3>
+                <h2 align="center" id="timer" hidden></h2>
+                <h4><div id="server-message">connecting to server..</div></h4>
                 <div class="form-group">
                     <input type="text" class="form-control input-lg" id="username" name="username" placeholder="name">
                 </div>
@@ -76,6 +80,7 @@
     $('#stand_button').toggle(false);
 
     ws.onmessage = function (dataIn) {
+        $('#server-message').text("Enter your name and play!");
         $('#server-message').text(dataIn.data);
         let jsonData ={};
         try{
@@ -95,6 +100,12 @@
     };
 
     function handleStartGame(data){
+        playerInfo
+        $('#server-message').toggle(false);
+        $('#leaderboard').css("display", "none");
+        $('#gameplayUI').css("display","block");
+        $('#gameStatus').toggle(true);
+        updateGameplayUI(data);
         if(data.gameStatus === "PLAYING"){
             $('#username').toggle(false);
             $('#startGame_button').toggle(false);
@@ -112,6 +123,7 @@
     }
 
     function handleHit(data){
+        updateGameplayUI(data);
         if(data.gameStatus !== "PLAYING"){
             $('#username').toggle(true);
             $('#startGame_button').toggle(true);
@@ -128,6 +140,7 @@
     }
 
     function handleStand(data){
+        updateGameplayUI(data);
         if(data.gameStatus !== "PLAYING"){
             $('#username').toggle(true);
             $('#startGame_button').toggle(true);
@@ -140,9 +153,22 @@
     }
 
     function handleLeaderboard(data){
+        $('#gameplayUI').css("display","none");
+        $('#leaderboard').css("display", "block");
+        $('#dealerHandImage').html("");
+        $('#playerHandImage').html("");
+        $('#gameStatus').toggle(false);
+
+        let place = 1;
+        $('#playerInfo').html('<tr><th>#</th><th>Username</th><th>Win</th><th>Draw</th> <th>Loss</th></tr>');
+        data.leaderboard.forEach(element => {
+            $('#playerInfo').append('<tr><th>'+place+'</th><th>'+element.username+'</th><th>'+element.wins+'</th><th>'+element.draws+'</th><th>'+element.losses+'</th></tr>');
+            place++;
+        });
     }
 
     function handleLoseByTimeout(data){
+        $('#gameStatus').text(data.gameStatus);
         $('#username').toggle(true);
         $('#startGame_button').toggle(true);
         $('#leaderboard_button').toggle(true);
@@ -150,6 +176,20 @@
         $('#stand_button').toggle(false);
         $('#timer').toggle(false);
         clearInterval(timerIntervalObj);
+    }
+
+    function updateGameplayUI(data){
+        $('#gameStatus').text(data.gameStatus);
+        $('#dealerHandValue').text(data.dealerHandValue);
+        $('#playerHandValue').text(data.playerHandValue);
+        $('#dealerHandImage').html("");
+        data.dealerHand.forEach(card => {
+            $('#dealerHandImage').append('<img src="cards/'+card+'.png" alt="'+card+'">');
+        });
+        $('#playerHandImage').html("");
+        data.playerHand.forEach(card => {
+            $('#playerHandImage').append('<img src="cards/'+card+'.png" alt="'+card+'">');
+        });
     }
 
     $('#startGame_button').on('click',function (e) {
@@ -160,8 +200,6 @@
             }
         }
         ws.send(JSON.stringify(json));
-
-
     });
 
     $('#hit_button').on('click',function (e) {

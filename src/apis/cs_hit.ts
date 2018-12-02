@@ -106,7 +106,7 @@ export async function cs_hit (ws: WebSocket, data: JSON, redisClient: RedisClien
       }
   }
   else{
-      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws, redisClient);
       blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
   }
   

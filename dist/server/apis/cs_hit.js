@@ -99,7 +99,7 @@ function cs_hit(ws, data, redisClient) {
             }
         }
         else {
-            const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+            const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws, redisClient);
             blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
         }
         //Response

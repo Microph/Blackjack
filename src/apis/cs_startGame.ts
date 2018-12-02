@@ -88,7 +88,7 @@ export async function cs_startGame (ws: WebSocket, data: JSON, redisClient: Redi
 
   //Create game session (if no blackjack)
   if(!hasBlackjack){
-      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+      const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws, redisClient);
       blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
       redisMulti.hmset(
           'session:' + data.username, 

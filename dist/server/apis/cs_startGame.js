@@ -80,7 +80,7 @@ function cs_startGame(ws, data, redisClient) {
         }
         //Create game session (if no blackjack)
         if (!hasBlackjack) {
-            const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws);
+            const timeoutIndex = setTimeout(blackjackUtil.loseByTimeout, blackjackUtil.TURN_TIME_LIMIT, data.username, ws, redisClient);
             blackjackUtil.sessionTimeoutIndexMap.set(data.username, timeoutIndex);
             redisMulti.hmset('session:' + data.username, 'lastActionTime', Date.now(), 'dealerHand', JSON.stringify(cardForDealerArray), 'playerHand', JSON.stringify([cardForPlayer1st, cardForPlayer2nd]));
         }

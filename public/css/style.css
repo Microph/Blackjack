@@ -4,7 +4,17 @@ img {
     padding-bottom: 20px;
 }
 
-#handInfo{ 
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+#handInfoText{ 
     font-size: 1.5em;
     font-weight: bold;
 }
