@@ -15,7 +15,7 @@ const callbacks = {};
 const redisClient = process.env.REDIS_URL ? redis.createClient(process.env.REDIS_URL)
     : redis.createClient(6379, '127.0.0.1');
 //Middlewares
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../../public/')));
 redisClient.on('connect', function () {
     //console.log('Redis client connected');
 });
